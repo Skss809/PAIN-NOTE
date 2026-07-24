@@ -65,12 +65,12 @@ export function Notepad() {
   if (currentBg && currentBg.includes('infinite-tsukoyomi.jpg')) {
     currentBg = defaultBg;
   }
-  if (!currentBg) {
+  if (!currentBg || currentBg === 'none') {
     currentBg = defaultBg;
   }
 
   const getBgStyle = (bg: string) => {
-    if (!bg || bg === 'none') return 'none';
+    if (!bg) return 'none';
     if (bg.startsWith('url(')) return bg;
     return `url("${bg}")`;
   };
@@ -112,6 +112,9 @@ export function Notepad() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset input value so the same file can be selected again
+    e.target.value = '';
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
@@ -119,7 +122,7 @@ export function Notepad() {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const maxDim = 1280;
+        const maxDim = 800; // Reduced to 800px to ensure it fits in Firestore 1MB limit
         
         if (width > maxDim || height > maxDim) {
           if (width > height) {
@@ -136,7 +139,13 @@ export function Notepad() {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5); // 50% quality to ensure it fits in Firestore 1MB limit
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.4); // 40% quality
+          
+          if (compressedBase64.length > 1000000) {
+            alert("Image is too large. Please select a smaller or simpler image.");
+            return;
+          }
+          
           updateBackgroundImage(compressedBase64).catch(err => {
             alert("Error saving image: " + err.message);
           });
@@ -148,7 +157,7 @@ export function Notepad() {
   };
 
   const clearBg = () => {
-    updateBackgroundImage('none');
+    updateBackgroundImage('');
   };
 
   const insertCheckbox = () => {
@@ -294,9 +303,9 @@ export function Notepad() {
                         <button type="submit" className={`py-1.5 px-3 text-xs font-semibold rounded-lg transition-colors ${isDark ? 'bg-white text-neutral-900 hover:bg-neutral-200' : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}>Set</button>
                       </form>
 
-                      {preferences?.backgroundImage && preferences.backgroundImage !== 'none' && (
+                      {preferences?.backgroundImage && preferences.backgroundImage !== 'none' && preferences.backgroundImage !== defaultBg && (
                         <button type="button" onClick={clearBg} className="w-full mt-1 py-1.5 px-3 bg-red-50 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-100 transition-colors border border-red-100">
-                          Remove Background
+                          Revert to Default
                         </button>
                       )}
                     </div>

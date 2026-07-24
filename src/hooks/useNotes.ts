@@ -125,6 +125,7 @@ export function useNotes() {
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `user_preferences/${user.uid}`);
+      throw error;
     }
   };
 
