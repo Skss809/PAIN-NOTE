@@ -60,6 +60,7 @@ export function Notepad() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isDark = preferences?.theme === 'dark';
+  const currentBg = preferences?.backgroundImage !== undefined ? preferences.backgroundImage : defaultBg;
 
   const handleCreateNew = async (templateContent: string = '', templateType: string = 'Custom') => {
     const title = 'Untitled Note';
@@ -185,7 +186,7 @@ export function Notepad() {
   return (
     <div 
       className={`min-h-screen transition-all duration-500 ease-in-out bg-cover bg-center bg-no-repeat bg-fixed flex flex-col ${isDark ? 'bg-neutral-900 text-neutral-100' : 'bg-neutral-100 text-neutral-900'}`}
-      style={{ backgroundImage: `url("${preferences?.backgroundImage || defaultBg}")` }}
+      style={{ backgroundImage: currentBg ? `url("${currentBg}")` : 'none' }}
     >
       {/* Top Navigation */}
       <header className={`backdrop-blur-xl border-b shadow-sm sticky top-0 z-30 ${isDark ? 'bg-black/60 border-white/10' : 'bg-white/90 border-white/20'}`}>
