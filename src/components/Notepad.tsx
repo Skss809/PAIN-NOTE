@@ -20,6 +20,7 @@ import {
   ListTodo
 } from 'lucide-react';
 import { Note } from '../types';
+import defaultBg from '../assets/infinite-tsukoyomi.jpg';
 
 const TEMPLATES = [
   {
@@ -184,7 +185,7 @@ export function Notepad() {
   return (
     <div 
       className={`min-h-screen transition-all duration-500 ease-in-out bg-cover bg-center bg-no-repeat bg-fixed flex flex-col ${isDark ? 'bg-neutral-900 text-neutral-100' : 'bg-neutral-100 text-neutral-900'}`}
-      style={{ backgroundImage: `url('${preferences?.backgroundImage || '/infinite-tsukoyomi.jpg'}')` }}
+      style={{ backgroundImage: `url("${preferences?.backgroundImage || defaultBg}")` }}
     >
       {/* Top Navigation */}
       <header className={`backdrop-blur-xl border-b shadow-sm sticky top-0 z-30 ${isDark ? 'bg-black/60 border-white/10' : 'bg-white/90 border-white/20'}`}>
