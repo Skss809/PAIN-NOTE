@@ -60,7 +60,7 @@ export function Notepad() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isDark = preferences?.theme === 'dark';
-  const currentBg = preferences?.backgroundImage !== undefined ? preferences.backgroundImage : defaultBg;
+  const currentBg = preferences?.backgroundImage || defaultBg;
 
   const handleCreateNew = async (templateContent: string = '', templateType: string = 'Custom') => {
     const title = 'Untitled Note';
@@ -86,15 +86,13 @@ export function Notepad() {
 
   const handleBgSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (bgInput.trim()) {
-      updateBackgroundImage(bgInput.trim())
-        .then(() => {
-          setBgInput('');
-        })
-        .catch(err => {
-          alert("Error saving URL: " + err.message);
-        });
-    }
+    updateBackgroundImage(bgInput.trim())
+      .then(() => {
+        setBgInput('');
+      })
+      .catch(err => {
+        alert("Error saving URL: " + err.message);
+      });
   };
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
