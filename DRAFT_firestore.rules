@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['userId', 'content', 'templateType', 'createdAt', 'updatedAt'])
+        && data.userId == request.auth.uid
+        && data.content is string
+        && data.content.size() <= 100000
+        && data.templateType is string
+        && data.templateType.size() <= 50
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /notes/{noteId} {
+      allow read: if isSignedIn() && existing().userId == request.auth.uid;
+      
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn()
+        && isValidId(noteId)
+        && isValidNote(incoming())
+        && incoming().keys().size() == 5
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+        
+      allow update: if isSignedIn()
+        && isValidId(noteId)
+        && isValidNote(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'templateType', 'updatedAt']);
+        
+      allow delete: if isSignedIn()
+        && isValidId(noteId)
+        && existing().userId == request.auth.uid;
+    }
+
+    function isValidUserPreferences(data, docId) {
+      return data.keys().hasAll(['userId', 'updatedAt'])
+        && data.userId == request.auth.uid
+        && data.userId == docId
+        && data.updatedAt is timestamp;
+    }
+
+    match /user_preferences/{userId} {
+      allow read: if isSignedIn() && userId == request.auth.uid && existing().userId == request.auth.uid;
+      
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && userId == request.auth.uid
+        && isValidUserPreferences(incoming(), userId)
+        && (incoming().keys().size() == 2 || (incoming().keys().hasAll(['backgroundImage']) && incoming().backgroundImage is string && incoming().backgroundImage.size() <= 2048 && incoming().keys().size() == 3))
+        && incoming().updatedAt == request.time;
+        
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && userId == request.auth.uid
+        && isValidUserPreferences(incoming(), userId)
+        && incoming().userId == existing().userId
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasAny(['backgroundImage', 'updatedAt']);
+        // Note: hasAny is used here, but we should probably use hasOnly or exact match
+    }
+  }
+}

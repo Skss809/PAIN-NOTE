@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    function isSignedIn() {
+      // Skipping email_verified check to allow simple Email/Password auth for demonstration as requested
+      return request.auth != null; 
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['userId', 'title', 'content', 'templateType', 'createdAt', 'updatedAt'])
+        && data.userId == request.auth.uid
+        && data.title is string
+        && data.title.size() <= 200
+        && data.content is string
+        && data.content.size() <= 100000
+        && data.templateType is string
+        && data.templateType.size() <= 50
+        && data.createdAt is number
+        && data.updatedAt is number;
+    }
+
+    match /notes/{noteId} {
+      allow read: if isSignedIn() && existing().userId == request.auth.uid;
+      
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn()
+        && isValidId(noteId)
+        && isValidNote(incoming())
+        && incoming().keys().size() == 6;
+        
+      allow update: if isSignedIn()
+        && isValidId(noteId)
+        && isValidNote(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'templateType', 'updatedAt']);
+        
+      allow delete: if isSignedIn()
+        && isValidId(noteId)
+        && existing().userId == request.auth.uid;
+    }
+
+    function isValidUserPreferences(data, docId) {
+      return data.keys().hasAll(['userId', 'updatedAt'])
+        && data.userId == request.auth.uid
+        && data.userId == docId
+        && data.updatedAt is number
+        && (!data.keys().hasAll(['backgroundImage']) || (data.backgroundImage is string && data.backgroundImage.size() <= 1048487))
+        && (!data.keys().hasAll(['theme']) || (data.theme in ['light', 'dark']));
+    }
+
+    match /user_preferences/{userId} {
+      allow read: if isSignedIn() && userId == request.auth.uid;
+      
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && userId == request.auth.uid
+        && isValidUserPreferences(incoming(), userId);
+        
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && userId == request.auth.uid
+        && isValidUserPreferences(incoming(), userId)
+        && incoming().userId == existing().userId
+        && incoming().diff(existing()).affectedKeys().hasOnly(['backgroundImage', 'theme', 'updatedAt']);
+    }
+  }
+}

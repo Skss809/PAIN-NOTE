@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "Note": {
+      "title": "Note",
+      "description": "A single note entry for a user",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User ID of the owner"
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 100000,
+          "description": "The text content of the note"
+        },
+        "templateType": {
+          "type": "string",
+          "enum": ["Meeting Notes", "To-Do List", "Code Snippet", "Custom"],
+          "description": "The template used for the note"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["userId", "content", "templateType", "createdAt", "updatedAt"]
+    },
+    "UserPreferences": {
+      "title": "User Preferences",
+      "description": "Preferences for a specific user, like background image",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User ID of the owner"
+        },
+        "backgroundImage": {
+          "type": "string",
+          "maxLength": 2048,
+          "description": "URL of the custom background image"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["userId", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/notes/{noteId}": {
+      "schema": {
+        "$ref": "#/entities/Note"
+      },
+      "description": "Collection of all user notes"
+    },
+    "/user_preferences/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserPreferences"
+      },
+      "description": "User-specific settings and preferences"
+    }
+  }
+}
