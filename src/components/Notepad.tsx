@@ -60,7 +60,20 @@ export function Notepad() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isDark = preferences?.theme === 'dark';
-  const currentBg = preferences?.backgroundImage || defaultBg;
+  let currentBg = preferences?.backgroundImage;
+  // Fix legacy broken path if it was saved in Firestore
+  if (currentBg === '/infinite-tsukoyomi.jpg') {
+    currentBg = defaultBg;
+  }
+  if (!currentBg) {
+    currentBg = defaultBg;
+  }
+
+  const getBgStyle = (bg: string) => {
+    if (!bg) return 'none';
+    if (bg.startsWith('url(')) return bg;
+    return `url("${bg}")`;
+  };
 
   const handleCreateNew = async (templateContent: string = '', templateType: string = 'Custom') => {
     const title = 'Untitled Note';
@@ -184,7 +197,7 @@ export function Notepad() {
   return (
     <div 
       className={`min-h-screen transition-all duration-500 ease-in-out bg-cover bg-center bg-no-repeat bg-fixed flex flex-col ${isDark ? 'bg-neutral-900 text-neutral-100' : 'bg-neutral-100 text-neutral-900'}`}
-      style={{ backgroundImage: currentBg ? `url("${currentBg}")` : 'none' }}
+      style={{ backgroundImage: getBgStyle(currentBg) }}
     >
       {/* Top Navigation */}
       <header className={`backdrop-blur-xl border-b shadow-sm sticky top-0 z-30 ${isDark ? 'bg-black/60 border-white/10' : 'bg-white/90 border-white/20'}`}>
