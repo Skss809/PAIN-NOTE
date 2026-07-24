@@ -62,7 +62,7 @@ export function Notepad() {
   const isDark = preferences?.theme === 'dark';
   let currentBg = preferences?.backgroundImage;
   // Fix legacy broken path if it was saved in Firestore
-  if (currentBg === '/infinite-tsukoyomi.jpg') {
+  if (currentBg && currentBg.includes('infinite-tsukoyomi.jpg')) {
     currentBg = defaultBg;
   }
   if (!currentBg) {
@@ -70,7 +70,7 @@ export function Notepad() {
   }
 
   const getBgStyle = (bg: string) => {
-    if (!bg) return 'none';
+    if (!bg || bg === 'none') return 'none';
     if (bg.startsWith('url(')) return bg;
     return `url("${bg}")`;
   };
@@ -148,7 +148,7 @@ export function Notepad() {
   };
 
   const clearBg = () => {
-    updateBackgroundImage('');
+    updateBackgroundImage('none');
   };
 
   const insertCheckbox = () => {
@@ -294,7 +294,7 @@ export function Notepad() {
                         <button type="submit" className={`py-1.5 px-3 text-xs font-semibold rounded-lg transition-colors ${isDark ? 'bg-white text-neutral-900 hover:bg-neutral-200' : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}>Set</button>
                       </form>
 
-                      {preferences?.backgroundImage && (
+                      {preferences?.backgroundImage && preferences.backgroundImage !== 'none' && (
                         <button type="button" onClick={clearBg} className="w-full mt-1 py-1.5 px-3 bg-red-50 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-100 transition-colors border border-red-100">
                           Remove Background
                         </button>
