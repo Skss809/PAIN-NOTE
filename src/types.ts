@@ -6,6 +6,7 @@ export interface Note {
   templateType: string;
   createdAt: number;
   updatedAt: number;
+  order?: number;
 }
 
 export interface UserPreferences {

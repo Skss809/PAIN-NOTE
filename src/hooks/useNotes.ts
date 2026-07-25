@@ -38,8 +38,15 @@ export function useNotes() {
       snapshot.forEach((doc) => {
         fetchedNotes.push({ id: doc.id, ...doc.data() } as Note);
       });
-      // Sort by creation time descending (newest first) locally
-      fetchedNotes.sort((a, b) => b.createdAt - a.createdAt);
+      // Sort by order descending, then creation time descending
+      fetchedNotes.sort((a, b) => {
+        if (a.order !== undefined && b.order !== undefined) {
+          return b.order - a.order; // Descending order
+        }
+        if (a.order !== undefined) return -1;
+        if (b.order !== undefined) return 1;
+        return b.createdAt - a.createdAt;
+      });
       setNotes(fetchedNotes);
       setLoading(false);
     }, (error) => {
@@ -151,6 +158,31 @@ export function useNotes() {
     }
   };
 
+  const reorderNotes = async (reorderedNotes: Note[]) => {
+    if (!user) return;
+    
+    // Optimistically update local state if needed (onSnapshot might handle this but doing it fast is good)
+    // Actually, onSnapshot will fire when we update Firestore.
+    // Assign order values (length - index to maintain descending sort)
+    const total = reorderedNotes.length;
+    
+    // Create a batch update or just sequential updates
+    // Since Firebase Web SDK 9 we can use writeBatch but sequential updateDoc is fine for small numbers
+    try {
+      await Promise.all(reorderedNotes.map(async (note, index) => {
+        const order = total - index;
+        if (note.order !== order) {
+          await updateDoc(doc(db, 'notes', note.id), {
+            order,
+            updatedAt: Date.now()
+          });
+        }
+      }));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `notes`);
+    }
+  };
+
   return { 
     notes, 
     preferences, 
@@ -159,6 +191,7 @@ export function useNotes() {
     updateNote, 
     deleteNote, 
     updateBackgroundImage,
-    updateTheme
+    updateTheme,
+    reorderNotes
   };
 }
