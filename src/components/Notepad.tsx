@@ -39,7 +39,7 @@ import {
   ListTodo, Grid, AlignLeft
 } from 'lucide-react';
 import { Note } from '../types';
-import defaultBg from '../assets/infinite-tsukoyomi.jpg';
+import defaultBg from '../assets/1784929805103.png';
 
 const TEMPLATES = [
   {
@@ -129,11 +129,12 @@ export function Notepad() {
 
   const isDark = preferences?.theme === 'dark';
   let currentBg = preferences?.backgroundImage;
+  console.log('DEBUG BG:', { currentBg, defaultBg, prefBg: preferences?.backgroundImage });
   // Fix legacy broken path if it was saved in Firestore
   if (currentBg && currentBg.includes('infinite-tsukoyomi.jpg')) {
     currentBg = defaultBg;
   }
-  if (!currentBg || currentBg === 'none') {
+  if (!currentBg || currentBg === 'none' || currentBg === 'default') {
     currentBg = defaultBg;
   }
 
@@ -225,7 +226,7 @@ export function Notepad() {
   };
 
   const clearBg = () => {
-    updateBackgroundImage('');
+    updateBackgroundImage('default');
   };
 
   const insertCheckbox = () => {
@@ -371,7 +372,7 @@ export function Notepad() {
                         <button type="submit" className={`py-1.5 px-3 text-xs font-semibold rounded-lg transition-colors ${isDark ? 'bg-white text-neutral-900 hover:bg-neutral-200' : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}>Set</button>
                       </form>
 
-                      {preferences?.backgroundImage && preferences.backgroundImage !== 'none' && preferences.backgroundImage !== defaultBg && (
+                      {preferences?.backgroundImage && preferences.backgroundImage !== 'none' && preferences.backgroundImage !== 'default' && preferences.backgroundImage !== defaultBg && (
                         <button type="button" onClick={clearBg} className="w-full mt-1 py-1.5 px-3 bg-red-50 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-100 transition-colors border border-red-100">
                           Revert to Default
                         </button>
