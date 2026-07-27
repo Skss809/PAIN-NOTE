@@ -71,7 +71,18 @@ const TEMPLATES = [
 export function Notepad() {
   const { user, logout } = useAuth();
   const { notes, preferences, loading, addNote, updateNote, deleteNote, updateBackgroundImage, updateTheme, reorderNotes } = useNotes();
-  const [isGridView, setIsGridView] = useState(false);
+  const [isGridView, setIsGridView] = useState(() => {
+    const saved = localStorage.getItem('isGridView');
+    return saved === 'true';
+  });
+
+  const toggleGridView = () => {
+    setIsGridView(prev => {
+      const next = !prev;
+      localStorage.setItem('isGridView', next.toString());
+      return next;
+    });
+  };
   
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -394,7 +405,7 @@ export function Notepad() {
               </div>
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => setIsGridView(!isGridView)}
+                  onClick={toggleGridView}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
                   title="Toggle Grid View"
                 >
