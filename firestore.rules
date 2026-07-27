@@ -27,7 +27,8 @@ service cloud.firestore {
         && data.templateType is string
         && data.templateType.size() <= 50
         && data.createdAt is number
-        && data.updatedAt is number;
+        && data.updatedAt is number
+        && (!data.keys().hasAny(['order']) || data.order is number);
     }
 
     match /notes/{noteId} {
@@ -38,14 +39,14 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && isValidId(noteId)
         && isValidNote(incoming())
-        && incoming().keys().size() == 6;
+        && incoming().keys().hasOnly(['userId', 'title', 'content', 'templateType', 'createdAt', 'updatedAt', 'order']);
         
       allow update: if isSignedIn()
         && isValidId(noteId)
         && isValidNote(incoming())
         && incoming().userId == existing().userId
         && incoming().createdAt == existing().createdAt
-        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'templateType', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'templateType', 'updatedAt', 'order']);
         
       allow delete: if isSignedIn()
         && isValidId(noteId)

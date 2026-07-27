@@ -44,8 +44,10 @@ export function useNotes() {
         if (a.order !== undefined && b.order !== undefined) {
           return b.order - a.order; // Descending order
         }
-        if (a.order !== undefined) return -1;
-        if (b.order !== undefined) return 1;
+        // Notes without order are newly created, so they should appear at the top
+        if (a.order === undefined && b.order !== undefined) return -1;
+        if (a.order !== undefined && b.order === undefined) return 1;
+        
         return b.createdAt - a.createdAt;
       });
       setNotes(fetchedNotes);
