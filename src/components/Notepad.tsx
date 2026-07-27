@@ -71,18 +71,14 @@ const TEMPLATES = [
 export function Notepad() {
   const { user, logout } = useAuth();
   const { notes, preferences, loading, addNote, updateNote, deleteNote, updateBackgroundImage, updateTheme, reorderNotes } = useNotes();
-  const [isGridView, setIsGridView] = useState(() => {
-    const saved = localStorage.getItem('isGridView');
-    return saved === 'true';
+  const [gridViews, setGridViews] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('gridViews');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
   });
-
-  const toggleGridView = () => {
-    setIsGridView(prev => {
-      const next = !prev;
-      localStorage.setItem('isGridView', next.toString());
-      return next;
-    });
-  };
   
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -115,6 +111,17 @@ export function Notepad() {
 
   
   const [activeNote, setActiveNote] = useState<Note | null>(null);
+
+  const isGridView = activeNote ? !!gridViews[activeNote.id] : false;
+
+  const toggleGridView = () => {
+    if (!activeNote) return;
+    setGridViews(prev => {
+      const next = { ...prev, [activeNote.id]: !prev[activeNote.id] };
+      localStorage.setItem('gridViews', JSON.stringify(next));
+      return next;
+    });
+  };
   const [bgInput, setBgInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
