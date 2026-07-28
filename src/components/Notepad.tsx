@@ -186,12 +186,26 @@ export function Notepad() {
 
     const reader = new FileReader();
     reader.onload = (event) => {
+      const originalBase64 = event.target?.result as string;
+      
+      // If the original image is already small enough for Firestore (limit is ~1MB for the whole doc)
+      // We check against ~1,000,000 chars of base64
+      if (originalBase64.length < 1000000) {
+        updateBackgroundImage(originalBase64).catch(err => {
+          alert("Error saving image: " + err.message);
+        });
+        return;
+      }
+
+      // If it's too large, we need to compress it but keep quality as high as possible
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const maxDim = 800; // Reduced to 800px to ensure it fits in Firestore 1MB limit
+        
+        // Don't shrink too much, try keeping up to 1920x1080
+        const maxDim = 1920; 
         
         if (width > maxDim || height > maxDim) {
           if (width > height) {
@@ -208,10 +222,25 @@ export function Notepad() {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.4); // 40% quality
+          
+          // Try high quality first
+          let compressedBase64 = canvas.toDataURL('image/jpeg', 0.9);
           
           if (compressedBase64.length > 1000000) {
-            alert("Image is too large. Please select a smaller or simpler image.");
+            // Still too large, try medium quality
+            compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          }
+          
+          if (compressedBase64.length > 1000000) {
+             // Still too large, try lower quality and resolution
+             canvas.width = width * 0.7;
+             canvas.height = height * 0.7;
+             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+             compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+          }
+
+          if (compressedBase64.length > 1000000) {
+            alert("Image is still too large after compression. Please select a smaller file (under 700KB).");
             return;
           }
           
@@ -220,7 +249,7 @@ export function Notepad() {
           });
         }
       };
-      img.src = event.target?.result as string;
+      img.src = originalBase64;
     };
     reader.readAsDataURL(file);
   };
