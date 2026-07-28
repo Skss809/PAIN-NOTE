@@ -125,7 +125,7 @@ export function Notepad() {
   const [bgInput, setBgInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>('root');
   const [newFolderName, setNewFolderName] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -605,7 +605,21 @@ export function Notepad() {
                             {gridData.rows?.map((row, rIdx) => (
                               <tr key={rIdx} className={`border-b ${isDark ? 'border-neutral-800 hover:bg-neutral-800/30' : 'border-neutral-100 hover:bg-neutral-50'}`}>
                                 {row.map((cell, cIdx) => (
-                                  <td key={cIdx} className="p-3 whitespace-pre-wrap">{cell}</td>
+                                  <td 
+                                    key={cIdx} 
+                                    className="p-3 whitespace-pre-wrap relative group cursor-pointer"
+                                    onDoubleClick={() => handleCopy(cell, `cell-${activeNote.id}-${rIdx}-${cIdx}`)}
+                                    title="Double click to copy"
+                                  >
+                                    <div className={`transition-all ${copiedId === `cell-${activeNote.id}-${rIdx}-${cIdx}` ? 'opacity-50' : ''}`}>
+                                      {cell}
+                                    </div>
+                                    {copiedId === `cell-${activeNote.id}-${rIdx}-${cIdx}` && (
+                                      <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <span className={`px-2 py-1 rounded text-xs font-bold shadow-lg ${isDark ? 'bg-white text-black' : 'bg-neutral-900 text-white'}`}>Copied!</span>
+                                      </span>
+                                    )}
+                                  </td>
                                 ))}
                               </tr>
                             ))}
