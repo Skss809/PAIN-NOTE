@@ -20,6 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useAuth } from '../hooks/useAuth';
 import { useNotes } from '../hooks/useNotes';
 import { parseToGrid } from '../lib/gridParser';
+import { TodoListEditor } from './TodoListEditor';
 import { 
   LogOut, 
   Image as ImageIcon, 
@@ -125,6 +126,7 @@ export function Notepad() {
   const [bgInput, setBgInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showNewMenu, setShowNewMenu] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>('root');
   const [newFolderName, setNewFolderName] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -335,30 +337,38 @@ export function Notepad() {
             <h1 className="text-xl font-serif tracking-tight font-semibold">Notepad</h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="relative group">
-              <button className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-neutral-100 hover:bg-neutral-200'}`}>
+            <div className="relative">
+              <button 
+                onClick={() => setShowNewMenu(!showNewMenu)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-neutral-100 hover:bg-neutral-200'}`}
+              >
                 <Plus className="w-4 h-4" /> New Note
               </button>
-              <div className={`absolute right-0 top-full mt-2 w-48 rounded-xl shadow-xl border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-50 ${isDark ? 'bg-neutral-900 border-neutral-700 text-neutral-200' : 'bg-white border-neutral-100'}`}>
-                <div className="p-2 space-y-1">
-                  <button 
-                    onClick={() => handleCreateNew('', 'Custom')}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left text-sm font-medium ${isDark ? 'hover:bg-neutral-800' : 'hover:bg-neutral-50 text-neutral-700'}`}
-                  >
-                    <Plus className={`w-4 h-4 ${isDark ? 'text-neutral-400' : 'text-neutral-400'}`} /> Blank Note
-                  </button>
-                  <div className={`h-px my-1 mx-2 ${isDark ? 'bg-neutral-800' : 'bg-neutral-100'}`}></div>
-                  {TEMPLATES.map(t => (
-                    <button 
-                      key={t.id}
-                      onClick={() => handleCreateNew(t.content, t.name)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left text-sm font-medium ${isDark ? 'hover:bg-neutral-800' : 'hover:bg-neutral-50 text-neutral-700'}`}
-                    >
-                      <t.icon className={`w-4 h-4 ${isDark ? 'text-neutral-400' : 'text-neutral-400'}`} /> {t.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {showNewMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNewMenu(false)}></div>
+                  <div className={`absolute right-0 top-full mt-2 w-48 rounded-xl shadow-xl border z-50 transition-all origin-top-right ${isDark ? 'bg-neutral-900 border-neutral-700 text-neutral-200' : 'bg-white border-neutral-100'}`}>
+                    <div className="p-2 space-y-1 relative z-50">
+                      <button 
+                        onClick={() => { handleCreateNew('', 'Custom'); setShowNewMenu(false); }}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left text-sm font-medium ${isDark ? 'hover:bg-neutral-800' : 'hover:bg-neutral-50 text-neutral-700'}`}
+                      >
+                        <Plus className={`w-4 h-4 ${isDark ? 'text-neutral-400' : 'text-neutral-400'}`} /> Blank Note
+                      </button>
+                      <div className={`h-px my-1 mx-2 ${isDark ? 'bg-neutral-800' : 'bg-neutral-100'}`}></div>
+                      {TEMPLATES.map(t => (
+                        <button 
+                          key={t.id}
+                          onClick={() => { handleCreateNew(t.content, t.name); setShowNewMenu(false); }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left text-sm font-medium ${isDark ? 'hover:bg-neutral-800' : 'hover:bg-neutral-50 text-neutral-700'}`}
+                        >
+                          <t.icon className={`w-4 h-4 ${isDark ? 'text-neutral-400' : 'text-neutral-400'}`} /> {t.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
             
             <div className="relative">
@@ -544,6 +554,7 @@ export function Notepad() {
                 >
                   {isGridView ? <><AlignLeft className="w-4 h-4" /> <span className="hidden sm:inline">Text View</span></> : <><Grid className="w-4 h-4" /> <span className="hidden sm:inline">Grid View</span></>}
                 </button>
+                {activeNote.templateType !== 'Todo List' && (
                 <button 
                   onClick={insertCheckbox}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
@@ -551,6 +562,7 @@ export function Notepad() {
                 >
                   <ListTodo className="w-4 h-4" /> <span className="hidden sm:inline">Add Checkbox</span>
                 </button>
+                )}
                 <button 
                   onClick={() => handleCopy(activeNote.content, activeNote.id)}
                   className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
@@ -634,6 +646,18 @@ export function Notepad() {
                       </div>
                     );
                   }
+                }
+                if (activeNote.templateType === 'Todo List' && !isGridView) {
+                  return (
+                    <TodoListEditor 
+                      content={activeNote.content} 
+                      onChange={(newContent) => {
+                        setActiveNote({ ...activeNote, content: newContent });
+                        updateNote(activeNote.id, activeNote.title || '', newContent, activeNote.templateType);
+                      }} 
+                      isDark={isDark} 
+                    />
+                  );
                 }
                 return (
                   <textarea
