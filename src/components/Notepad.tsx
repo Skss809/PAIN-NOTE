@@ -36,9 +36,9 @@ import {
   Settings,
   Moon,
   Sun,
-  ListTodo, Grid, AlignLeft
+  ListTodo, Grid, AlignLeft, Folder, FolderPlus, Menu, X as CloseIcon, MoreVertical
 } from 'lucide-react';
-import { Note } from '../types';
+import { Note, Folder as FolderType } from '../types';
 import defaultBg from '../assets/1784929805103.png';
 
 const TEMPLATES = [
@@ -70,7 +70,7 @@ const TEMPLATES = [
 
 export function Notepad() {
   const { user, logout } = useAuth();
-  const { notes, preferences, loading, addNote, updateNote, deleteNote, updateBackgroundImage, updateTheme, reorderNotes } = useNotes();
+  const { notes, preferences, loading, addNote, updateNote, deleteNote, updateBackgroundImage, updateTheme, reorderNotes, folders, addFolder, deleteFolder, moveNote } = useNotes();
   const [gridViews, setGridViews] = useState<Record<string, boolean>>(() => {
     try {
       const saved = localStorage.getItem('gridViews');
@@ -124,6 +124,9 @@ export function Notepad() {
   };
   const [bgInput, setBgInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -147,6 +150,7 @@ export function Notepad() {
   const handleCreateNew = async (templateContent: string = '', templateType: string = 'Custom') => {
     const title = 'Untitled Note';
     const noteId = await addNote(title, templateContent, templateType);
+    if (noteId && selectedFolderId && selectedFolderId !== 'all' && selectedFolderId !== 'root') { await moveNote(noteId, selectedFolderId); }
     if (noteId && user) {
       setActiveNote({
         id: noteId,
@@ -285,6 +289,13 @@ export function Notepad() {
     }, 0);
   };
 
+
+  const filteredNotes = notes.filter(n => {
+    if (selectedFolderId === 'all' || selectedFolderId === null) return true;
+    if (selectedFolderId === 'root') return !n.folderId;
+    return n.folderId === selectedFolderId;
+  });
+
   if (loading) {
     return <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-neutral-900 text-neutral-400' : 'bg-neutral-50 text-neutral-400'}`}><div className="animate-pulse font-medium">Loading workspace...</div></div>;
   }
@@ -309,7 +320,15 @@ export function Notepad() {
       {/* Top Navigation */}
       <header className={`backdrop-blur-xl border-b shadow-sm sticky top-0 z-30 ${isDark ? 'bg-black/60 border-white/10' : 'bg-white/90 border-white/20'}`}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          
           <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setShowSidebar(!showSidebar)}
+              className={`p-2 rounded-xl transition-all ${isDark ? 'text-neutral-400 hover:text-white hover:bg-neutral-800' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'}`} 
+              title="Toggle Sidebar"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? 'bg-white text-black' : 'bg-neutral-900 text-white'}`}>
               <PenLine className="w-5 h-5" />
             </div>
@@ -420,7 +439,84 @@ export function Notepad() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8 relative flex flex-col">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8 relative flex flex-row gap-6 items-start">
+        
+        {/* Sidebar */}
+        {showSidebar && (
+          <aside className={`w-64 flex-shrink-0 flex flex-col gap-4 rounded-3xl p-4 border shadow-sm transition-all ${isDark ? 'bg-black/60 border-white/10' : 'bg-white/80 border-black/5'}`}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-semibold">Folders</h2>
+              <button onClick={() => setShowSidebar(false)} className={`p-1 rounded-lg ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}>
+                <CloseIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <button 
+                onClick={() => setSelectedFolderId('all')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${selectedFolderId === 'all' || selectedFolderId === null ? (isDark ? 'bg-white/10' : 'bg-black/5') : (isDark ? 'hover:bg-white/5' : 'hover:bg-black/5')}`}
+              >
+                <AlignLeft className="w-4 h-4" /> All Notes
+              </button>
+              <button 
+                onClick={() => setSelectedFolderId('root')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${selectedFolderId === 'root' ? (isDark ? 'bg-white/10' : 'bg-black/5') : (isDark ? 'hover:bg-white/5' : 'hover:bg-black/5')}`}
+              >
+                <Folder className="w-4 h-4" /> Root
+              </button>
+              
+              <div className="my-2 h-px bg-current opacity-10"></div>
+              
+              {folders.map(folder => (
+                <div key={folder.id} className="flex items-center group">
+                  <button 
+                    onClick={() => setSelectedFolderId(folder.id)}
+                    className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-l-xl text-sm transition-colors ${selectedFolderId === folder.id ? (isDark ? 'bg-white/10' : 'bg-black/5') : (isDark ? 'hover:bg-white/5' : 'hover:bg-black/5')}`}
+                  >
+                    <Folder className="w-4 h-4" />
+                    <span className="truncate">{folder.name}</span>
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); deleteFolder(folder.id); if (selectedFolderId === folder.id) setSelectedFolderId('all'); }}
+                    className={`px-2 py-2 rounded-r-xl transition-colors opacity-0 group-hover:opacity-100 ${selectedFolderId === folder.id ? (isDark ? 'bg-white/10 text-red-400' : 'bg-black/5 text-red-500') : (isDark ? 'hover:bg-white/5 text-red-400' : 'hover:bg-black/5 text-red-500')}`}
+                    title="Delete Folder"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (newFolderName.trim()) {
+                  addFolder(newFolderName.trim());
+                  setNewFolderName('');
+                }
+              }}
+              className="mt-4 flex flex-col gap-2"
+            >
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="New folder name..."
+                className={`w-full px-3 py-2 rounded-xl text-sm ${isDark ? 'bg-white/5 border-white/10 focus:border-white/20' : 'bg-black/5 border-black/5 focus:border-black/10'} border outline-none`}
+              />
+              <button 
+                type="submit"
+                disabled={!newFolderName.trim()}
+                className={`flex items-center justify-center gap-2 w-full py-2 rounded-xl text-sm font-medium transition-colors ${isDark ? 'bg-white text-black hover:bg-neutral-200' : 'bg-black text-white hover:bg-neutral-800'} disabled:opacity-50`}
+              >
+                <FolderPlus className="w-4 h-4" /> Add Folder
+              </button>
+            </form>
+          </aside>
+        )}
+
+        {/* Main Workspace */}
+        <div className="flex-1 flex flex-col min-w-0 self-stretch gap-6">
         
         {/* Detail View / Active Note */}
         {activeNote ? (
@@ -559,19 +655,21 @@ export function Notepad() {
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   <SortableContext 
-                    items={notes.map(n => n.id)}
+                    items={filteredNotes.map(n => n.id)}
                     strategy={rectSortingStrategy}
                   >
-                    {notes.map(note => (
+                    {filteredNotes.map(note => (
                       <SortableNote 
-                        key={note.id}
-                        note={note}
-                        isDark={isDark}
-                        setActiveNote={setActiveNote}
-                        deleteNote={deleteNote}
-                        handleCopy={handleCopy}
-                        copiedId={copiedId}
+                        key={note.id} 
+                        note={note} 
+                        isDark={isDark} 
+                        setActiveNote={setActiveNote} 
+                        deleteNote={deleteNote} 
+                        handleCopy={handleCopy} 
+                        copiedId={copiedId} 
                         formatDate={formatDate}
+                        folders={folders}
+                        moveNote={moveNote}
                       />
                     ))}
                   </SortableContext>
@@ -580,6 +678,7 @@ export function Notepad() {
             )}
           </div>
         )}
+        </div>
       </main>
     </div>
   );
@@ -593,6 +692,8 @@ interface SortableNoteProps {
   handleCopy: (content: string, id: string) => void;
   copiedId: string | null;
   formatDate: (timestamp?: number) => string;
+  folders: FolderType[];
+  moveNote: (noteId: string, folderId: string | null) => Promise<void>;
 }
 
 const SortableNote: React.FC<SortableNoteProps> = ({ 
@@ -602,7 +703,9 @@ const SortableNote: React.FC<SortableNoteProps> = ({
   deleteNote, 
   handleCopy, 
   copiedId, 
-  formatDate 
+  formatDate,
+  folders,
+  moveNote
 }) => {
   const {
     attributes,
@@ -636,15 +739,28 @@ const SortableNote: React.FC<SortableNoteProps> = ({
         <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isDark ? 'bg-white/10 text-neutral-300' : 'bg-neutral-900/5 text-neutral-700'}`}>
           {note.templateType}
         </span>
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteNote(note.id);
-          }}
-          className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all ${isDark ? 'text-neutral-500 hover:text-red-400 hover:bg-red-900/30' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`}
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all">
+          <select 
+            value={note.folderId || ''} 
+            onClick={e => e.stopPropagation()} 
+            onChange={e => { e.stopPropagation(); moveNote(note.id, e.target.value || null); }}
+            className={`text-xs rounded p-1 max-w-[80px] outline-none cursor-pointer ${isDark ? 'bg-black/40 text-neutral-300' : 'bg-white/50 text-neutral-600'} border-none`}
+          >
+            <option value="">Root</option>
+            {folders.map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteNote(note.id);
+            }}
+            className={`p-1.5 rounded-lg ${isDark ? 'text-neutral-500 hover:text-red-400 hover:bg-red-900/30' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
       
       <h3 className={`font-semibold text-lg mb-2 line-clamp-2 leading-tight ${isDark ? 'text-white' : 'text-neutral-900'}`}>

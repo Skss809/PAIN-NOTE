@@ -7,6 +7,14 @@ export interface Note {
   createdAt: number;
   updatedAt: number;
   order?: number;
+  folderId?: string;
+}
+
+export interface Folder {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: number;
 }
 
 export interface UserPreferences {

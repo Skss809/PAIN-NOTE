@@ -28,7 +28,8 @@ service cloud.firestore {
         && data.templateType.size() <= 50
         && data.createdAt is number
         && data.updatedAt is number
-        && (!data.keys().hasAny(['order']) || data.order is number);
+        && (!data.keys().hasAny(['order']) || data.order is number)
+        && (!data.keys().hasAny(['folderId']) || data.folderId == null || data.folderId is string);
     }
 
     match /notes/{noteId} {
@@ -39,17 +40,45 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && isValidId(noteId)
         && isValidNote(incoming())
-        && incoming().keys().hasOnly(['userId', 'title', 'content', 'templateType', 'createdAt', 'updatedAt', 'order']);
+        && incoming().keys().hasOnly(['userId', 'title', 'content', 'templateType', 'createdAt', 'updatedAt', 'order', 'folderId']);
         
       allow update: if isSignedIn()
         && isValidId(noteId)
         && isValidNote(incoming())
         && incoming().userId == existing().userId
         && incoming().createdAt == existing().createdAt
-        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'templateType', 'updatedAt', 'order']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'templateType', 'updatedAt', 'order', 'folderId']);
         
       allow delete: if isSignedIn()
         && isValidId(noteId)
+        && existing().userId == request.auth.uid;
+    }
+
+    
+    function isValidFolder(data) {
+      return data.keys().hasAll(['userId', 'name', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.name is string
+        && data.name.size() <= 100
+        && data.createdAt is number;
+    }
+
+    match /folders/{folderId} {
+      allow read, list: if isSignedIn() && existing().userId == request.auth.uid;
+      
+      allow create: if isSignedIn()
+        && isValidId(folderId)
+        && isValidFolder(incoming())
+        && incoming().keys().hasOnly(['userId', 'name', 'createdAt']);
+        
+      allow update: if isSignedIn()
+        && isValidId(folderId)
+        && isValidFolder(incoming())
+        && incoming().userId == existing().userId
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name']);
+        
+      allow delete: if isSignedIn()
+        && isValidId(folderId)
         && existing().userId == request.auth.uid;
     }
 

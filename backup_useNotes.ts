@@ -12,20 +12,18 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { Note, UserPreferences, Folder } from '../types';
+import { Note, UserPreferences } from '../types';
 import { useAuth } from './useAuth';
 
 export function useNotes() {
   const { user } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
-  const [folders, setFolders] = useState<Folder[]>([]);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
       setNotes([]);
-      setFolders([]);
       setPreferences(null);
       setLoading(false);
       return;
@@ -59,19 +57,6 @@ export function useNotes() {
       setLoading(false);
     });
 
-        const foldersRef = collection(db, 'folders');
-    const qFolders = query(foldersRef, where('userId', '==', user.uid));
-    const unsubFolders = onSnapshot(qFolders, (snapshot) => {
-      const fetchedFolders: Folder[] = [];
-      snapshot.forEach((doc) => {
-        fetchedFolders.push({ id: doc.id, ...doc.data() } as Folder);
-      });
-      fetchedFolders.sort((a, b) => b.createdAt - a.createdAt);
-      setFolders(fetchedFolders);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'folders');
-    });
-
     const prefRef = doc(db, 'user_preferences', user.uid);
     const unsubPref = onSnapshot(prefRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -83,7 +68,6 @@ export function useNotes() {
 
     return () => {
       unsubNotes();
-      unsubFolders();
       unsubPref();
     };
   }, [user]);
@@ -106,55 +90,6 @@ export function useNotes() {
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `notes/${noteId}`);
       return null;
-    }
-  };
-
-  
-  const addFolder = async (name: string) => {
-    if (!user) return null;
-    const folderId = 'f_' + Date.now().toString() + Math.floor(Math.random() * 1000);
-    const newFolder: Omit<Folder, 'id'> = {
-      userId: user.uid,
-      name,
-      createdAt: Date.now()
-    };
-    try {
-      await setDoc(doc(db, 'folders', folderId), newFolder);
-      return folderId;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `folders/${folderId}`);
-      return null;
-    }
-  };
-
-  const deleteFolder = async (folderId: string) => {
-    if (!user) return;
-    try {
-      // also optionally update notes in this folder to have no folderId?
-      // For now just delete the folder
-      await deleteDoc(doc(db, 'folders', folderId));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `folders/${folderId}`);
-    }
-  };
-
-  const moveNote = async (noteId: string, folderId: string | null) => {
-    if (!user) return;
-    try {
-      if (folderId === null) {
-        // use an update that deletes the field or sets it to null
-        await updateDoc(doc(db, 'notes', noteId), {
-          folderId: null,
-          updatedAt: Date.now()
-        });
-      } else {
-        await updateDoc(doc(db, 'notes', noteId), {
-          folderId,
-          updatedAt: Date.now()
-        });
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `notes/${noteId}`);
     }
   };
 
@@ -262,10 +197,6 @@ export function useNotes() {
     deleteNote, 
     updateBackgroundImage,
     updateTheme,
-    reorderNotes,
-    folders,
-    addFolder,
-    deleteFolder,
-    moveNote
+    reorderNotes
   };
 }
