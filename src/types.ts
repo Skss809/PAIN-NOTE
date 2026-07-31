@@ -8,6 +8,8 @@ export interface Note {
   updatedAt: number;
   order?: number;
   folderId?: string;
+  fontFamily?: string;
+  fontSize?: number;
 }
 
 export interface Folder {

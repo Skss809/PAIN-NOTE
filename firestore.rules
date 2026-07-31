@@ -29,7 +29,9 @@ service cloud.firestore {
         && data.createdAt is number
         && data.updatedAt is number
         && (!data.keys().hasAny(['order']) || data.order is number)
-        && (!data.keys().hasAny(['folderId']) || data.folderId == null || data.folderId is string);
+        && (!data.keys().hasAny(['folderId']) || data.folderId == null || data.folderId is string)
+        && (!data.keys().hasAny(['fontFamily']) || data.fontFamily is string)
+        && (!data.keys().hasAny(['fontSize']) || data.fontSize is number);
     }
 
     match /notes/{noteId} {
@@ -40,14 +42,14 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && isValidId(noteId)
         && isValidNote(incoming())
-        && incoming().keys().hasOnly(['userId', 'title', 'content', 'templateType', 'createdAt', 'updatedAt', 'order', 'folderId']);
+        && incoming().keys().hasOnly(['userId', 'title', 'content', 'templateType', 'createdAt', 'updatedAt', 'order', 'folderId', 'fontFamily', 'fontSize']);
         
       allow update: if isSignedIn()
         && isValidId(noteId)
         && isValidNote(incoming())
         && incoming().userId == existing().userId
         && incoming().createdAt == existing().createdAt
-        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'templateType', 'updatedAt', 'order', 'folderId']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'templateType', 'updatedAt', 'order', 'folderId', 'fontFamily', 'fontSize']);
         
       allow delete: if isSignedIn()
         && isValidId(noteId)

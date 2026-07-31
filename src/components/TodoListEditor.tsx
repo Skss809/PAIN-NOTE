@@ -27,6 +27,8 @@ interface TodoListEditorProps {
   content: string;
   onChange: (content: string) => void;
   isDark: boolean;
+  fontFamily?: string;
+  fontSize?: number;
 }
 
 const parseContent = (content: string): TodoItem[] => {
@@ -52,7 +54,7 @@ const serializeContent = (items: TodoItem[]): string => {
   return items.map(item => `- [${item.checked ? 'x' : ' '}] ${item.text}`).join('\n');
 };
 
-export const TodoListEditor: React.FC<TodoListEditorProps> = ({ content, onChange, isDark }) => {
+export const TodoListEditor: React.FC<TodoListEditorProps> = ({ content, onChange, isDark, fontFamily, fontSize }) => {
   const itemsRef = useRef<TodoItem[]>([]);
   
   // Initialize items only once if we don't want cursor jumps, but we need to keep them synced.
@@ -132,6 +134,8 @@ export const TodoListEditor: React.FC<TodoListEditorProps> = ({ content, onChang
                 newItems.splice(index, 1);
                 updateItems(newItems);
               }}
+              fontFamily={fontFamily}
+              fontSize={fontSize}
             />
           ))}
         </SortableContext>
@@ -156,9 +160,11 @@ interface SortableTodoItemProps {
   onChange: (val: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onDelete: () => void;
+  fontFamily?: string;
+  fontSize?: number;
 }
 
-const SortableTodoItem: React.FC<SortableTodoItemProps> = ({ item, isDark, onToggle, onChange, onKeyDown, onDelete }) => {
+const SortableTodoItem: React.FC<SortableTodoItemProps> = ({ item, isDark, onToggle, onChange, onKeyDown, onDelete, fontFamily, fontSize }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   
   const style = {
@@ -193,7 +199,8 @@ const SortableTodoItem: React.FC<SortableTodoItemProps> = ({ item, isDark, onTog
         value={item.text}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
-        className={`flex-1 bg-transparent outline-none text-sm ${item.checked ? 'line-through opacity-50' : ''} ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}
+        className={`flex-1 bg-transparent outline-none ${item.checked ? 'line-through opacity-50' : ''} ${fontFamily || 'font-mono'} ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}
+        style={{ fontSize: `${fontSize || 14}px` }}
         placeholder="Todo item..."
       />
       

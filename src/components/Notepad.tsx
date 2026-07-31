@@ -37,7 +37,7 @@ import {
   Settings,
   Moon,
   Sun,
-  ListTodo, Grid, AlignLeft, Folder, FolderPlus, Menu, X as CloseIcon, MoreVertical
+  ListTodo, Grid, AlignLeft, Type, Minus, Folder, FolderPlus, Menu, X as CloseIcon, MoreVertical
 } from 'lucide-react';
 import { Note, Folder as FolderType } from '../types';
 import defaultBg from '../assets/1784929805103.png';
@@ -127,6 +127,7 @@ export function Notepad() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showNewMenu, setShowNewMenu] = useState(false);
+  const [showFontMenu, setShowFontMenu] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>('root');
   const [newFolderName, setNewFolderName] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -554,6 +555,63 @@ export function Notepad() {
                 >
                   {isGridView ? <><AlignLeft className="w-4 h-4" /> <span className="hidden sm:inline">Text View</span></> : <><Grid className="w-4 h-4" /> <span className="hidden sm:inline">Grid View</span></>}
                 </button>
+                <div className="relative">
+                <button 
+                  onClick={() => setShowFontMenu(!showFontMenu)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
+                  title="Font Settings"
+                >
+                  <Type className="w-4 h-4" /> <span className="hidden sm:inline">Font</span>
+                </button>
+                {showFontMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowFontMenu(false)}></div>
+                    <div className={`absolute right-0 top-full mt-2 w-56 rounded-xl shadow-xl border z-50 p-2 transition-all origin-top-right ${isDark ? 'bg-neutral-900 border-neutral-700 text-neutral-200' : 'bg-white border-neutral-100'}`}>
+                      <div className="relative z-50 space-y-2">
+                        <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">Font Family</div>
+                        <div className="grid grid-cols-1 gap-1">
+                          {['font-mono', 'font-sans', 'font-serif'].map(f => (
+                            <button 
+                              key={f}
+                              onClick={() => {
+                                setActiveNote({ ...activeNote, fontFamily: f });
+                                updateNote(activeNote.id, activeNote.title || '', activeNote.content, activeNote.templateType, f, activeNote.fontSize);
+                              }}
+                              className={`text-left px-3 py-2 rounded-lg text-sm transition-colors ${activeNote.fontFamily === f ? (isDark ? 'bg-white/10' : 'bg-black/5') : (isDark ? 'hover:bg-neutral-800' : 'hover:bg-neutral-50')}`}
+                            >
+                              <span className={f}>{f === 'font-mono' ? 'Monospace' : f === 'font-sans' ? 'Sans Serif' : 'Serif'}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className={`h-px my-2 ${isDark ? 'bg-neutral-800' : 'bg-neutral-100'}`}></div>
+                        <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">Size ({activeNote.fontSize || 14}px)</div>
+                        <div className="flex items-center gap-2 px-2 pb-1">
+                          <button 
+                            onClick={() => {
+                              const newSize = Math.max(10, (activeNote.fontSize || 14) - 1);
+                              setActiveNote({ ...activeNote, fontSize: newSize });
+                              updateNote(activeNote.id, activeNote.title || '', activeNote.content, activeNote.templateType, activeNote.fontFamily, newSize);
+                            }}
+                            className={`p-1.5 rounded-lg border transition-colors flex-1 flex justify-center ${isDark ? 'border-neutral-700 hover:bg-neutral-800' : 'border-neutral-200 hover:bg-neutral-100'}`}
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const newSize = Math.min(32, (activeNote.fontSize || 14) + 1);
+                              setActiveNote({ ...activeNote, fontSize: newSize });
+                              updateNote(activeNote.id, activeNote.title || '', activeNote.content, activeNote.templateType, activeNote.fontFamily, newSize);
+                            }}
+                            className={`p-1.5 rounded-lg border transition-colors flex-1 flex justify-center ${isDark ? 'border-neutral-700 hover:bg-neutral-800' : 'border-neutral-200 hover:bg-neutral-100'}`}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
                 {activeNote.templateType !== 'Todo List' && (
                 <button 
                   onClick={insertCheckbox}
@@ -656,6 +714,8 @@ export function Notepad() {
                         updateNote(activeNote.id, activeNote.title || '', newContent, activeNote.templateType);
                       }} 
                       isDark={isDark} 
+                      fontFamily={activeNote.fontFamily}
+                      fontSize={activeNote.fontSize}
                     />
                   );
                 }
@@ -667,7 +727,8 @@ export function Notepad() {
                       setActiveNote({ ...activeNote, content: e.target.value });
                       updateNote(activeNote.id, activeNote.title || '', e.target.value, activeNote.templateType);
                     }}
-                    className={`flex-1 w-full bg-transparent outline-none resize-none font-mono text-sm leading-relaxed ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}
+                    className={`flex-1 w-full bg-transparent outline-none resize-none ${activeNote.fontFamily || 'font-mono'} leading-relaxed ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}
+                    style={{ fontSize: `${activeNote.fontSize || 14}px` }}
                     placeholder="Start typing..."
                   />
                 );

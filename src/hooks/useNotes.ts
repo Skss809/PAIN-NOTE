@@ -88,7 +88,7 @@ export function useNotes() {
     };
   }, [user]);
 
-  const addNote = async (title: string, content: string, templateType: string = 'Custom') => {
+  const addNote = async (title: string, content: string, templateType: string = 'Custom', fontFamily?: string, fontSize?: number) => {
     if (!user) return null;
     const noteId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const newNote: Omit<Note, 'id'> = {
@@ -96,6 +96,8 @@ export function useNotes() {
       title,
       content,
       templateType,
+      fontFamily: fontFamily || 'font-mono',
+      fontSize: fontSize || 14,
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -158,7 +160,7 @@ export function useNotes() {
     }
   };
 
-  const updateNote = async (noteId: string, title: string, content: string, templateType: string) => {
+  const updateNote = async (noteId: string, title: string, content: string, templateType: string, fontFamily?: string, fontSize?: number) => {
     if (!user) return;
     try {
       await updateDoc(doc(db, 'notes', noteId), {
