@@ -26,6 +26,10 @@
         "updatedAt": {
           "type": "string",
           "description": "ISO timestamp of last update"
+        },
+        "isGridView": {
+          "type": "boolean",
+          "description": "Whether the note is set to grid view mode"
         }
       },
       "required": ["userId", "content", "templateType", "createdAt", "updatedAt"]

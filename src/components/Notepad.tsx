@@ -72,14 +72,6 @@ const TEMPLATES = [
 export function Notepad() {
   const { user, logout } = useAuth();
   const { notes, preferences, loading, addNote, updateNote, deleteNote, updateBackgroundImage, updateTheme, reorderNotes, folders, addFolder, deleteFolder, moveNote } = useNotes();
-  const [gridViews, setGridViews] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem('gridViews');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
   
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -110,18 +102,15 @@ export function Notepad() {
     }
   };
 
-  
   const [activeNote, setActiveNote] = useState<Note | null>(null);
 
-  const isGridView = activeNote ? !!gridViews[activeNote.id] : false;
+  const isGridView = activeNote ? !!activeNote.isGridView : false;
 
   const toggleGridView = () => {
     if (!activeNote) return;
-    setGridViews(prev => {
-      const next = { ...prev, [activeNote.id]: !prev[activeNote.id] };
-      localStorage.setItem('gridViews', JSON.stringify(next));
-      return next;
-    });
+    const nextIsGrid = !activeNote.isGridView;
+    setActiveNote({ ...activeNote, isGridView: nextIsGrid });
+    updateNote(activeNote.id, activeNote.title || '', activeNote.content, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, nextIsGrid);
   };
   const [bgInput, setBgInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -152,7 +141,7 @@ export function Notepad() {
 
   const handleCreateNew = async (templateContent: string = '', templateType: string = 'Custom') => {
     const title = 'Untitled Note';
-    const noteId = await addNote(title, templateContent, templateType);
+    const noteId = await addNote(title, templateContent, templateType, 'font-mono', 14, false);
     if (noteId && selectedFolderId && selectedFolderId !== 'all' && selectedFolderId !== 'root') { await moveNote(noteId, selectedFolderId); }
     if (noteId && user) {
       setActiveNote({
@@ -161,6 +150,9 @@ export function Notepad() {
         title,
         content: templateContent,
         templateType,
+        fontFamily: 'font-mono',
+        fontSize: 14,
+        isGridView: false,
         createdAt: Date.now(),
         updatedAt: Date.now()
       });
@@ -281,7 +273,7 @@ export function Notepad() {
     
     const newContent = beforeText + insertText + afterText;
     
-    updateNote(activeNote.id, activeNote.title || '', newContent, activeNote.templateType);
+    updateNote(activeNote.id, activeNote.title || '', newContent, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
     
     // Set focus back to textarea and move cursor
     setTimeout(() => {
@@ -575,7 +567,7 @@ export function Notepad() {
                               key={f}
                               onClick={() => {
                                 setActiveNote({ ...activeNote, fontFamily: f });
-                                updateNote(activeNote.id, activeNote.title || '', activeNote.content, activeNote.templateType, f, activeNote.fontSize);
+                                updateNote(activeNote.id, activeNote.title || '', activeNote.content, activeNote.templateType, f, activeNote.fontSize, activeNote.isGridView);
                               }}
                               className={`text-left px-3 py-2 rounded-lg text-sm transition-colors ${activeNote.fontFamily === f ? (isDark ? 'bg-white/10' : 'bg-black/5') : (isDark ? 'hover:bg-neutral-800' : 'hover:bg-neutral-50')}`}
                             >
@@ -590,7 +582,7 @@ export function Notepad() {
                             onClick={() => {
                               const newSize = Math.max(10, (activeNote.fontSize || 14) - 1);
                               setActiveNote({ ...activeNote, fontSize: newSize });
-                              updateNote(activeNote.id, activeNote.title || '', activeNote.content, activeNote.templateType, activeNote.fontFamily, newSize);
+                              updateNote(activeNote.id, activeNote.title || '', activeNote.content, activeNote.templateType, activeNote.fontFamily, newSize, activeNote.isGridView);
                             }}
                             className={`p-1.5 rounded-lg border transition-colors flex-1 flex justify-center ${isDark ? 'border-neutral-700 hover:bg-neutral-800' : 'border-neutral-200 hover:bg-neutral-100'}`}
                           >
@@ -600,7 +592,7 @@ export function Notepad() {
                             onClick={() => {
                               const newSize = Math.min(32, (activeNote.fontSize || 14) + 1);
                               setActiveNote({ ...activeNote, fontSize: newSize });
-                              updateNote(activeNote.id, activeNote.title || '', activeNote.content, activeNote.templateType, activeNote.fontFamily, newSize);
+                              updateNote(activeNote.id, activeNote.title || '', activeNote.content, activeNote.templateType, activeNote.fontFamily, newSize, activeNote.isGridView);
                             }}
                             className={`p-1.5 rounded-lg border transition-colors flex-1 flex justify-center ${isDark ? 'border-neutral-700 hover:bg-neutral-800' : 'border-neutral-200 hover:bg-neutral-100'}`}
                           >
@@ -650,7 +642,7 @@ export function Notepad() {
                 value={activeNote.title || ''}
                 onChange={(e) => {
                   setActiveNote({ ...activeNote, title: e.target.value });
-                  updateNote(activeNote.id, e.target.value, activeNote.content, activeNote.templateType);
+                  updateNote(activeNote.id, e.target.value, activeNote.content, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
                 }}
                 className={`w-full bg-transparent outline-none font-serif text-3xl font-bold mb-4 placeholder:opacity-50 ${isDark ? 'text-white placeholder:text-neutral-500' : 'text-neutral-900 placeholder:text-neutral-400'}`}
                 placeholder="Note Title"
@@ -711,7 +703,7 @@ export function Notepad() {
                       content={activeNote.content} 
                       onChange={(newContent) => {
                         setActiveNote({ ...activeNote, content: newContent });
-                        updateNote(activeNote.id, activeNote.title || '', newContent, activeNote.templateType);
+                        updateNote(activeNote.id, activeNote.title || '', newContent, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
                       }} 
                       isDark={isDark} 
                       fontFamily={activeNote.fontFamily}
@@ -725,7 +717,7 @@ export function Notepad() {
                     value={activeNote.content}
                     onChange={(e) => {
                       setActiveNote({ ...activeNote, content: e.target.value });
-                      updateNote(activeNote.id, activeNote.title || '', e.target.value, activeNote.templateType);
+                      updateNote(activeNote.id, activeNote.title || '', e.target.value, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
                     }}
                     className={`flex-1 w-full bg-transparent outline-none resize-none ${activeNote.fontFamily || 'font-mono'} leading-relaxed ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}
                     style={{ fontSize: `${activeNote.fontSize || 14}px` }}

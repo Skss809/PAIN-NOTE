@@ -88,7 +88,7 @@ export function useNotes() {
     };
   }, [user]);
 
-  const addNote = async (title: string, content: string, templateType: string = 'Custom', fontFamily?: string, fontSize?: number) => {
+  const addNote = async (title: string, content: string, templateType: string = 'Custom', fontFamily?: string, fontSize?: number, isGridView?: boolean) => {
     if (!user) return null;
     const noteId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const newNote: Omit<Note, 'id'> = {
@@ -98,6 +98,7 @@ export function useNotes() {
       templateType,
       fontFamily: fontFamily || 'font-mono',
       fontSize: fontSize || 14,
+      isGridView: isGridView ?? false,
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -160,15 +161,19 @@ export function useNotes() {
     }
   };
 
-  const updateNote = async (noteId: string, title: string, content: string, templateType: string, fontFamily?: string, fontSize?: number) => {
+  const updateNote = async (noteId: string, title: string, content: string, templateType: string, fontFamily?: string, fontSize?: number, isGridView?: boolean) => {
     if (!user) return;
     try {
-      await updateDoc(doc(db, 'notes', noteId), {
+      const updateData: any = {
         title,
         content,
         templateType,
         updatedAt: Date.now()
-      });
+      };
+      if (fontFamily) updateData.fontFamily = fontFamily;
+      if (fontSize) updateData.fontSize = fontSize;
+      if (isGridView !== undefined) updateData.isGridView = isGridView;
+      await updateDoc(doc(db, 'notes', noteId), updateData);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `notes/${noteId}`);
     }

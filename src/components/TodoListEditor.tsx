@@ -112,7 +112,7 @@ export const TodoListEditor: React.FC<TodoListEditorProps> = ({ content, onChang
     if (active.id !== over?.id) {
       const oldIndex = items.findIndex(i => i.id === active.id);
       const newIndex = items.findIndex(i => i.id === over.id);
-      const newItems = arrayMove(items, oldIndex, newIndex);
+      const newItems = arrayMove(items, oldIndex, newIndex) as TodoItem[];
       updateItems(newItems);
     }
   };

@@ -10,6 +10,7 @@ export interface Note {
   folderId?: string;
   fontFamily?: string;
   fontSize?: number;
+  isGridView?: boolean;
 }
 
 export interface Folder {
