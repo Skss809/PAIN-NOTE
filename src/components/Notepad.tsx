@@ -21,6 +21,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useNotes } from '../hooks/useNotes';
 import { parseToGrid } from '../lib/gridParser';
 import { TodoListEditor } from './TodoListEditor';
+import { AHTCalculator } from './AHTCalculator';
 import { 
   LogOut, 
   Image as ImageIcon, 
@@ -37,7 +38,8 @@ import {
   Settings,
   Moon,
   Sun,
-  ListTodo, Grid, AlignLeft, Type, Minus, Folder, FolderPlus, Menu, X as CloseIcon, MoreVertical
+  ListTodo, Grid, AlignLeft, Type, Minus, Folder, FolderPlus, Menu, X as CloseIcon, MoreVertical,
+  Calculator
 } from 'lucide-react';
 import { Note, Folder as FolderType } from '../types';
 import defaultBg from '../assets/1784929805103.png';
@@ -103,6 +105,7 @@ export function Notepad() {
   };
 
   const [activeNote, setActiveNote] = useState<Note | null>(null);
+  const [activeView, setActiveView] = useState<'notes' | 'aht'>('notes');
 
   const isGridView = activeNote ? !!activeNote.isGridView : false;
 
@@ -140,6 +143,7 @@ export function Notepad() {
   };
 
   const handleCreateNew = async (templateContent: string = '', templateType: string = 'Custom') => {
+    setActiveView('notes');
     const title = 'Untitled Note';
     const noteId = await addNote(title, templateContent, templateType, 'font-mono', 14, false);
     if (noteId && selectedFolderId && selectedFolderId !== 'all' && selectedFolderId !== 'root') { await moveNote(noteId, selectedFolderId); }
@@ -448,7 +452,7 @@ export function Notepad() {
         {showSidebar && (
           <aside className={`w-64 flex-shrink-0 flex flex-col gap-4 rounded-3xl p-4 border shadow-sm transition-all ${isDark ? 'bg-black/60 border-white/10' : 'bg-white/80 border-black/5'}`}>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="font-semibold">Folders</h2>
+              <h2 className="font-semibold text-sm uppercase tracking-wider text-neutral-400">Navigation</h2>
               <button onClick={() => setShowSidebar(false)} className={`p-1 rounded-lg ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}>
                 <CloseIcon className="w-4 h-4" />
               </button>
@@ -456,14 +460,14 @@ export function Notepad() {
 
             <div className="flex flex-col gap-1">
               <button 
-                onClick={() => setSelectedFolderId('all')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${selectedFolderId === 'all' || selectedFolderId === null ? (isDark ? 'bg-white/10' : 'bg-black/5') : (isDark ? 'hover:bg-white/5' : 'hover:bg-black/5')}`}
+                onClick={() => { setActiveView('notes'); setSelectedFolderId('all'); }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${activeView === 'notes' && (selectedFolderId === 'all' || selectedFolderId === null) ? (isDark ? 'bg-white/10 text-white font-medium' : 'bg-black/5 text-black font-medium') : (isDark ? 'hover:bg-white/5 text-neutral-300' : 'hover:bg-black/5 text-neutral-700')}`}
               >
                 <AlignLeft className="w-4 h-4" /> All Notes
               </button>
               <button 
-                onClick={() => setSelectedFolderId('root')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${selectedFolderId === 'root' ? (isDark ? 'bg-white/10' : 'bg-black/5') : (isDark ? 'hover:bg-white/5' : 'hover:bg-black/5')}`}
+                onClick={() => { setActiveView('notes'); setSelectedFolderId('root'); }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${activeView === 'notes' && selectedFolderId === 'root' ? (isDark ? 'bg-white/10 text-white font-medium' : 'bg-black/5 text-black font-medium') : (isDark ? 'hover:bg-white/5 text-neutral-300' : 'hover:bg-black/5 text-neutral-700')}`}
               >
                 <Folder className="w-4 h-4" /> Root
               </button>
@@ -473,15 +477,15 @@ export function Notepad() {
               {folders.map(folder => (
                 <div key={folder.id} className="flex items-center group">
                   <button 
-                    onClick={() => setSelectedFolderId(folder.id)}
-                    className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-l-xl text-sm transition-colors ${selectedFolderId === folder.id ? (isDark ? 'bg-white/10' : 'bg-black/5') : (isDark ? 'hover:bg-white/5' : 'hover:bg-black/5')}`}
+                    onClick={() => { setActiveView('notes'); setSelectedFolderId(folder.id); }}
+                    className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-l-xl text-sm transition-colors ${activeView === 'notes' && selectedFolderId === folder.id ? (isDark ? 'bg-white/10 text-white font-medium' : 'bg-black/5 text-black font-medium') : (isDark ? 'hover:bg-white/5 text-neutral-300' : 'hover:bg-black/5 text-neutral-700')}`}
                   >
                     <Folder className="w-4 h-4" />
                     <span className="truncate">{folder.name}</span>
                   </button>
                   <button 
                     onClick={(e) => { e.stopPropagation(); deleteFolder(folder.id); if (selectedFolderId === folder.id) setSelectedFolderId('all'); }}
-                    className={`px-2 py-2 rounded-r-xl transition-colors opacity-0 group-hover:opacity-100 ${selectedFolderId === folder.id ? (isDark ? 'bg-white/10 text-red-400' : 'bg-black/5 text-red-500') : (isDark ? 'hover:bg-white/5 text-red-400' : 'hover:bg-black/5 text-red-500')}`}
+                    className={`px-2 py-2 rounded-r-xl transition-colors opacity-0 group-hover:opacity-100 ${activeView === 'notes' && selectedFolderId === folder.id ? (isDark ? 'bg-white/10 text-red-400' : 'bg-black/5 text-red-500') : (isDark ? 'hover:bg-white/5 text-red-400' : 'hover:bg-black/5 text-red-500')}`}
                     title="Delete Folder"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -498,7 +502,7 @@ export function Notepad() {
                   setNewFolderName('');
                 }
               }}
-              className="mt-4 flex flex-col gap-2"
+              className="mt-2 flex flex-col gap-2"
             >
               <input
                 type="text"
@@ -515,14 +519,34 @@ export function Notepad() {
                 <FolderPlus className="w-4 h-4" /> Add Folder
               </button>
             </form>
+
+            <div className="my-2 h-px bg-current opacity-10"></div>
+
+            {/* Tools Section */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 px-1 mb-1">Tools & Utilities</span>
+              <button
+                onClick={() => { setActiveView('aht'); setActiveNote(null); }}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  activeView === 'aht'
+                    ? 'bg-[#00E5FF]/20 text-[#00E5FF] font-semibold border border-[#00E5FF]/40 shadow-[0_0_15px_rgba(0,229,255,0.2)]'
+                    : (isDark ? 'hover:bg-white/5 text-neutral-300' : 'hover:bg-black/5 text-neutral-700')
+                }`}
+              >
+                <Calculator className="w-4 h-4 text-[#00E5FF]" />
+                Calculate AHT
+              </button>
+            </div>
+
           </aside>
         )}
 
         {/* Main Workspace */}
         <div className="flex-1 flex flex-col min-w-0 self-stretch gap-6">
         
-        {/* Detail View / Active Note */}
-        {activeNote ? (
+        {activeView === 'aht' ? (
+          <AHTCalculator isDark={isDark} />
+        ) : activeNote ? (
           <div className={`flex-1 w-full backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col border ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-200 ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-white/40'}`}>
             <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-neutral-800 bg-neutral-900/50' : 'border-neutral-100 bg-white/50'}`}>
               <div className="flex items-center gap-4">
