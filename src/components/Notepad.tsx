@@ -22,6 +22,7 @@ import { useNotes } from '../hooks/useNotes';
 import { parseToGrid } from '../lib/gridParser';
 import { TodoListEditor } from './TodoListEditor';
 import { AHTCalculator } from './AHTCalculator';
+import { AISearchBox } from './AISearchBox';
 import { 
   LogOut, 
   Image as ImageIcon, 
@@ -123,6 +124,7 @@ export function Notepad() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>('root');
   const [newFolderName, setNewFolderName] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [aiSearchResults, setAiSearchResults] = useState<string[] | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isDark = preferences?.theme === 'dark';
@@ -290,6 +292,9 @@ export function Notepad() {
 
 
   const filteredNotes = notes.filter(n => {
+    if (aiSearchResults !== null) {
+      return aiSearchResults.includes(n.id);
+    }
     if (selectedFolderId === 'all' || selectedFolderId === null) return true;
     if (selectedFolderId === 'root') return !n.folderId;
     return n.folderId === selectedFolderId;
@@ -331,8 +336,13 @@ export function Notepad() {
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? 'bg-white text-black' : 'bg-neutral-900 text-white'}`}>
               <PenLine className="w-5 h-5" />
             </div>
-            <h1 className="text-xl font-serif tracking-tight font-semibold">Notepad</h1>
+            <h1 className="hidden sm:block text-xl font-serif tracking-tight font-semibold">Notepad</h1>
           </div>
+          
+          <div className="flex-1 flex justify-center w-full px-4">
+            <AISearchBox notes={notes} onSearchResults={setAiSearchResults} isDark={isDark} />
+          </div>
+
           <div className="flex items-center gap-4">
             <div className="relative">
               <button 
@@ -753,14 +763,22 @@ export function Notepad() {
           </div>
         ) : (
           /* Grid View of Notes */
-          <div className="animate-in fade-in duration-300 w-full">
+          <div className="animate-in fade-in duration-300 w-full flex flex-col items-center">
             {notes.length === 0 ? (
-              <div className="text-center py-20">
+              <div className="text-center py-20 w-full">
                 <div className={`w-24 h-24 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border ${isDark ? 'bg-black/50 border-white/10' : 'bg-white/50 border-white/40'}`}>
                   <LayoutTemplate className={`w-10 h-10 ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`} />
                 </div>
                 <h2 className={`text-2xl font-serif font-semibold mb-3 drop-shadow-sm ${isDark ? 'text-white' : 'text-neutral-800'}`}>No notes yet</h2>
                 <p className={`max-w-sm mx-auto drop-shadow-sm ${isDark ? 'text-neutral-400' : 'text-neutral-600'}`}>Create your first note using the "New Note" button above.</p>
+              </div>
+            ) : filteredNotes.length === 0 ? (
+              <div className="text-center py-20 w-full">
+                <div className={`w-24 h-24 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border ${isDark ? 'bg-black/50 border-white/10' : 'bg-white/50 border-white/40'}`}>
+                  <FileText className={`w-10 h-10 ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`} />
+                </div>
+                <h2 className={`text-2xl font-serif font-semibold mb-3 drop-shadow-sm ${isDark ? 'text-white' : 'text-neutral-800'}`}>No matching notes</h2>
+                <p className={`max-w-sm mx-auto drop-shadow-sm ${isDark ? 'text-neutral-400' : 'text-neutral-600'}`}>Try adjusting your search or selecting a different folder.</p>
               </div>
             ) : (
               <DndContext
@@ -768,7 +786,7 @@ export function Notepad() {
                 collisionDetection={closestCenter}
                 onDragEnd={handleDragEnd}
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
                   <SortableContext 
                     items={filteredNotes.map(n => n.id)}
                     strategy={rectSortingStrategy}
