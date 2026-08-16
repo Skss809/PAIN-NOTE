@@ -33,15 +33,16 @@ export function AISearchBox({ notes, onSearchResults, isDark }: AISearchBoxProps
       });
 
       if (!response.ok) {
-        throw new Error('Search failed');
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Search failed');
       }
 
       const data = await response.json();
       const relevantIds = data.results;
       onSearchResults(relevantIds);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Failed to perform AI search.');
+      alert(error.message || 'Failed to perform AI search.');
     } finally {
       setIsSearching(false);
     }
