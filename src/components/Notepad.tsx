@@ -323,9 +323,9 @@ export function Notepad() {
     >
       {/* Top Navigation */}
       <header className={`backdrop-blur-xl border-b shadow-sm sticky top-0 z-30 ${isDark ? 'bg-black/60 border-white/10' : 'bg-white/90 border-white/20'}`}>
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 h-16 flex items-center justify-between">
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
             <button 
               onClick={() => setShowSidebar(!showSidebar)}
               className={`p-2 rounded-xl transition-all ${isDark ? 'text-neutral-400 hover:text-white hover:bg-neutral-800' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'}`} 
@@ -333,23 +333,23 @@ export function Notepad() {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? 'bg-white text-black' : 'bg-neutral-900 text-white'}`}>
+            <div className={`hidden sm:flex w-8 h-8 rounded-lg items-center justify-center ${isDark ? 'bg-white text-black' : 'bg-neutral-900 text-white'}`}>
               <PenLine className="w-5 h-5" />
             </div>
-            <h1 className="hidden sm:block text-xl font-serif tracking-tight font-semibold">Notepad</h1>
+            <h1 className="hidden md:block text-xl font-serif tracking-tight font-semibold">Notepad</h1>
           </div>
           
-          <div className="flex-1 flex justify-center w-full px-4">
+          <div className="flex-1 flex justify-center w-full px-1 sm:px-4">
             <AISearchBox notes={notes} onSearchResults={setAiSearchResults} isDark={isDark} />
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 sm:gap-4">
             <div className="relative">
               <button 
                 onClick={() => setShowNewMenu(!showNewMenu)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-neutral-100 hover:bg-neutral-200'}`}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-xl text-sm font-medium transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-neutral-100 hover:bg-neutral-200'}`}
               >
-                <Plus className="w-4 h-4" /> New Note
+                <Plus className="w-4 h-4" /> <span className="hidden sm:inline">New Note</span>
               </button>
               {showNewMenu && (
                 <>
@@ -456,11 +456,11 @@ export function Notepad() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8 relative flex flex-row gap-6 items-start">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-8 relative flex flex-col md:flex-row gap-6 items-start">
         
         {/* Sidebar */}
         {showSidebar && (
-          <aside className={`w-64 flex-shrink-0 flex flex-col gap-4 rounded-3xl p-4 border shadow-sm transition-all ${isDark ? 'bg-black/60 border-white/10' : 'bg-white/80 border-black/5'}`}>
+          <aside className={`w-full md:w-64 flex-shrink-0 flex flex-col gap-4 rounded-3xl p-4 border shadow-sm transition-all z-20 ${isDark ? 'bg-black/60 border-white/10' : 'bg-white/80 border-black/5'}`}>
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold text-sm uppercase tracking-wider text-neutral-400">Navigation</h2>
               <button onClick={() => setShowSidebar(false)} className={`p-1 rounded-lg ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}>
@@ -558,33 +558,33 @@ export function Notepad() {
           <AHTCalculator isDark={isDark} />
         ) : activeNote ? (
           <div className={`flex-1 w-full backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col border ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-200 ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-white/40'}`}>
-            <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-neutral-800 bg-neutral-900/50' : 'border-neutral-100 bg-white/50'}`}>
-              <div className="flex items-center gap-4">
+            <div className={`px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between overflow-x-auto ${isDark ? 'border-neutral-800 bg-neutral-900/50' : 'border-neutral-100 bg-white/50'}`}>
+              <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                 <button 
                   onClick={() => setActiveNote(null)}
                   className={`flex items-center gap-1 p-2 -ml-2 rounded-xl transition-all font-medium text-sm ${isDark ? 'text-neutral-400 hover:text-white hover:bg-neutral-800' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'}`}
                 >
-                  <ChevronLeft className="w-5 h-5" /> Back
+                  <ChevronLeft className="w-5 h-5" /> <span className="hidden sm:inline">Back</span>
                 </button>
-                <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-lg ${isDark ? 'bg-neutral-800 text-neutral-300' : 'bg-neutral-100 text-neutral-600'}`}>
+                <span className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider rounded-lg ${isDark ? 'bg-neutral-800 text-neutral-300' : 'bg-neutral-100 text-neutral-600'}`}>
                   {activeNote.templateType}
                 </span>
                 <span className={`text-xs font-medium hidden sm:inline-block ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
                   Last edited {formatDate(activeNote.updatedAt)}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 <button 
                   onClick={toggleGridView}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
+                  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
                   title="Toggle Grid View"
                 >
-                  {isGridView ? <><AlignLeft className="w-4 h-4" /> <span className="hidden sm:inline">Text View</span></> : <><Grid className="w-4 h-4" /> <span className="hidden sm:inline">Grid View</span></>}
+                  {isGridView ? <><AlignLeft className="w-4 h-4" /> <span className="hidden sm:inline">Text</span></> : <><Grid className="w-4 h-4" /> <span className="hidden sm:inline">Grid</span></>}
                 </button>
                 <div className="relative">
                 <button 
                   onClick={() => setShowFontMenu(!showFontMenu)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
+                  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
                   title="Font Settings"
                 >
                   <Type className="w-4 h-4" /> <span className="hidden sm:inline">Font</span>
@@ -786,7 +786,7 @@ export function Notepad() {
                 collisionDetection={closestCenter}
                 onDragEnd={handleDragEnd}
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 w-full">
                   <SortableContext 
                     items={filteredNotes.map(n => n.id)}
                     strategy={rectSortingStrategy}
@@ -866,18 +866,18 @@ const SortableNote: React.FC<SortableNoteProps> = ({
       {...attributes}
       {...listeners}
       onClick={() => setActiveNote(note)}
-      className={`group backdrop-blur-md border hover:shadow-xl hover:-translate-y-1 rounded-2xl p-5 cursor-pointer transition-all duration-300 flex flex-col h-64 ${isDark ? 'bg-black/60 border-white/10 hover:border-neutral-500' : 'bg-white/80 border-white/40 hover:border-neutral-300'} ${isDragging ? 'shadow-2xl scale-105' : ''}`}
+      className={`group backdrop-blur-md border hover:shadow-xl hover:-translate-y-1 rounded-2xl p-3 sm:p-5 cursor-pointer transition-all duration-300 flex flex-col h-56 sm:h-64 ${isDark ? 'bg-black/60 border-white/10 hover:border-neutral-500' : 'bg-white/80 border-white/40 hover:border-neutral-300'} ${isDragging ? 'shadow-2xl scale-105' : ''}`}
     >
-      <div className="flex items-start justify-between mb-3">
-        <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isDark ? 'bg-white/10 text-neutral-300' : 'bg-neutral-900/5 text-neutral-700'}`}>
+      <div className="flex items-start justify-between mb-2 sm:mb-3">
+        <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider rounded-md ${isDark ? 'bg-white/10 text-neutral-300' : 'bg-neutral-900/5 text-neutral-700'}`}>
           {note.templateType}
         </span>
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all">
+        <div className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex items-center gap-1 transition-all">
           <select 
             value={note.folderId || ''} 
             onClick={e => e.stopPropagation()} 
             onChange={e => { e.stopPropagation(); moveNote(note.id, e.target.value || null); }}
-            className={`text-xs rounded p-1 max-w-[80px] outline-none cursor-pointer ${isDark ? 'bg-black/40 text-neutral-300' : 'bg-white/50 text-neutral-600'} border-none`}
+            className={`text-[10px] sm:text-xs rounded p-1 max-w-[60px] sm:max-w-[80px] outline-none cursor-pointer ${isDark ? 'bg-black/40 text-neutral-300' : 'bg-white/50 text-neutral-600'} border-none`}
           >
             <option value="">Root</option>
             {folders.map(f => (
@@ -889,23 +889,23 @@ const SortableNote: React.FC<SortableNoteProps> = ({
               e.stopPropagation();
               deleteNote(note.id);
             }}
-            className={`p-1.5 rounded-lg ${isDark ? 'text-neutral-500 hover:text-red-400 hover:bg-red-900/30' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`}
+            className={`p-1 sm:p-1.5 rounded-lg ${isDark ? 'text-neutral-500 hover:text-red-400 hover:bg-red-900/30' : 'text-neutral-400 hover:text-red-600 hover:bg-red-50'}`}
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
       </div>
       
-      <h3 className={`font-semibold text-lg mb-2 line-clamp-2 leading-tight ${isDark ? 'text-white' : 'text-neutral-900'}`}>
+      <h3 className={`font-semibold text-base sm:text-lg mb-1 sm:mb-2 line-clamp-2 leading-tight ${isDark ? 'text-white' : 'text-neutral-900'}`}>
         {title}
       </h3>
       
-      <p className={`text-sm line-clamp-4 flex-1 whitespace-pre-wrap font-mono ${isDark ? 'text-neutral-400' : 'text-neutral-500'}`}>
+      <p className={`text-xs sm:text-sm line-clamp-4 flex-1 whitespace-pre-wrap font-mono ${isDark ? 'text-neutral-400' : 'text-neutral-500'}`}>
         {preview || <span className="italic opacity-50">Empty note</span>}
       </p>
       
-      <div className={`mt-4 pt-4 border-t flex items-center justify-between ${isDark ? 'border-neutral-800' : 'border-neutral-100'}`}>
-        <span className={`text-xs font-medium ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
+      <div className={`mt-2 sm:mt-4 pt-2 sm:pt-4 border-t flex items-center justify-between ${isDark ? 'border-neutral-800' : 'border-neutral-100'}`}>
+        <span className={`text-[10px] sm:text-xs font-medium ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
           {formatDate(note.updatedAt)}
         </span>
         <button 
