@@ -233,6 +233,28 @@ export function useNotes() {
     }
   };
 
+  const updateGridColumns = async (gridColumns: number) => {
+    if (!user) return;
+    const prefRef = doc(db, 'user_preferences', user.uid);
+    try {
+      const snap = await getDoc(prefRef);
+      if (snap.exists()) {
+        await updateDoc(prefRef, {
+          gridColumns,
+          updatedAt: Date.now()
+        });
+      } else {
+        await setDoc(prefRef, {
+          userId: user.uid,
+          gridColumns,
+          updatedAt: Date.now()
+        });
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `user_preferences/${user.uid}`);
+    }
+  };
+
   const reorderNotes = async (reorderedNotes: Note[]) => {
     if (!user) return;
     
@@ -269,6 +291,7 @@ export function useNotes() {
     deleteNote, 
     updateBackgroundImage,
     updateTheme,
+    updateGridColumns,
     reorderNotes,
     folders,
     addFolder,

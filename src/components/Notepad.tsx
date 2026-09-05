@@ -74,7 +74,7 @@ const TEMPLATES = [
 
 export function Notepad() {
   const { user, logout } = useAuth();
-  const { notes, preferences, loading, addNote, updateNote, deleteNote, updateBackgroundImage, updateTheme, reorderNotes, folders, addFolder, deleteFolder, moveNote } = useNotes();
+  const { notes, preferences, loading, addNote, updateNote, deleteNote, updateBackgroundImage, updateTheme, updateGridColumns, reorderNotes, folders, addFolder, deleteFolder, moveNote } = useNotes();
   
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -142,6 +142,17 @@ export function Notepad() {
     if (!bg) return 'none';
     if (bg.startsWith('url(')) return bg;
     return `url("${bg}")`;
+  };
+
+  const getGridColsClass = (cols?: number) => {
+    switch (cols) {
+      case 2: return 'grid-cols-2 md:grid-cols-2';
+      case 3: return 'grid-cols-2 md:grid-cols-3';
+      case 4: return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
+      case 5: return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
+      case 6: return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6';
+      default: return 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+    }
   };
 
   const handleCreateNew = async (templateContent: string = '', templateType: string = 'Custom') => {
@@ -411,6 +422,22 @@ export function Notepad() {
                       </div>
                     </div>
                     
+                    {/* Grid Columns Setting */}
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm font-medium">Desktop Grid</span>
+                      <select
+                        value={preferences?.gridColumns || 4}
+                        onChange={(e) => updateGridColumns(Number(e.target.value))}
+                        className={`text-sm rounded p-1 outline-none cursor-pointer ${isDark ? 'bg-neutral-800 text-neutral-300 border-neutral-700' : 'bg-neutral-100 text-neutral-600 border-neutral-200'} border`}
+                      >
+                        <option value={2}>2 Columns</option>
+                        <option value={3}>3 Columns</option>
+                        <option value={4}>4 Columns</option>
+                        <option value={5}>5 Columns</option>
+                        <option value={6}>6 Columns</option>
+                      </select>
+                    </div>
+                    
                     {/* Background Settings */}
                     <div className="space-y-3">
                       <span className="text-sm font-medium">Background Image</span>
@@ -558,7 +585,7 @@ export function Notepad() {
           <AHTCalculator isDark={isDark} />
         ) : activeNote ? (
           <div className={`flex-1 w-full backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col border ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-200 ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-white/40'}`}>
-            <div className={`px-4 sm:px-6 py-3 sm:py-4 border-b flex items-center justify-between overflow-x-auto ${isDark ? 'border-neutral-800 bg-neutral-900/50' : 'border-neutral-100 bg-white/50'}`}>
+            <div className={`px-4 sm:px-6 py-3 sm:py-4 border-b flex flex-wrap items-center justify-between gap-2 overflow-visible ${isDark ? 'border-neutral-800 bg-neutral-900/50' : 'border-neutral-100 bg-white/50'}`}>
               <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                 <button 
                   onClick={() => setActiveNote(null)}
@@ -641,7 +668,7 @@ export function Notepad() {
                 {activeNote.templateType !== 'Todo List' && (
                 <button 
                   onClick={insertCheckbox}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
+                  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
                   title="Insert Checkbox"
                 >
                   <ListTodo className="w-4 h-4" /> <span className="hidden sm:inline">Add Checkbox</span>
@@ -649,12 +676,12 @@ export function Notepad() {
                 )}
                 <button 
                   onClick={() => handleCopy(activeNote.content, activeNote.id)}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
+                  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
                 >
                   {copiedId === activeNote.id ? (
-                    <><CheckSquare className="w-4 h-4 text-green-500" /> Copied!</>
+                    <><CheckSquare className="w-4 h-4 text-green-500" /> <span className="hidden sm:inline">Copied!</span></>
                   ) : (
-                    <><Copy className="w-4 h-4" /> Copy</>
+                    <><Copy className="w-4 h-4" /> <span className="hidden sm:inline">Copy</span></>
                   )}
                 </button>
                 <button 
@@ -786,7 +813,7 @@ export function Notepad() {
                 collisionDetection={closestCenter}
                 onDragEnd={handleDragEnd}
               >
-                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 w-full">
+                <div className={`grid ${getGridColsClass(preferences?.gridColumns)} gap-3 sm:gap-6 w-full`}>
                   <SortableContext 
                     items={filteredNotes.map(n => n.id)}
                     strategy={rectSortingStrategy}

@@ -24,5 +24,6 @@ export interface UserPreferences {
   userId: string;
   backgroundImage?: string;
   theme?: 'light' | 'dark';
+  gridColumns?: number;
   updatedAt: number;
 }
