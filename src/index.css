@@ -1,23 +1,40 @@
 @import "tailwindcss";
-.ql-container.ql-snow {
-  border: none !important;
-  font-family: inherit !important;
-  font-size: inherit !important;
+
+/* Note hyperlink styling */
+.note-hyperlink {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 4px;
+  padding: 0 4px;
+  transition: all 0.15s ease;
 }
-.ql-editor {
-  padding: 0 !important;
-  font-family: inherit !important;
-  font-size: inherit !important;
-  line-height: inherit !important;
+
+.note-hyperlink:hover {
+  color: #1d4ed8;
+  background-color: rgba(37, 99, 235, 0.1);
 }
-.ql-editor a {
-  color: #3b82f6 !important;
-  text-decoration: underline !important;
-  cursor: pointer !important;
+
+.quill-dark .note-hyperlink,
+.dark .note-hyperlink {
+  color: #38bdf8;
 }
-.quill-dark .ql-editor {
-  color: #e5e5e5;
+
+.quill-dark .note-hyperlink:hover,
+.dark .note-hyperlink:hover {
+  color: #7dd3fc;
+  background-color: rgba(56, 189, 248, 0.15);
 }
-.quill-light .ql-editor {
-  color: #262626;
+
+[contenteditable="true"]:empty:before {
+  content: attr(data-placeholder);
+  opacity: 0.4;
+  pointer-events: none;
+  display: block;
 }
+

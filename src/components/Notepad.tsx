@@ -1,6 +1,4 @@
 import React, { useState, FormEvent, ChangeEvent, useRef } from 'react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
 import { 
   DndContext, 
   closestCenter,
@@ -25,6 +23,7 @@ import { parseToGrid } from '../lib/gridParser';
 import { TodoListEditor } from './TodoListEditor';
 import { AHTCalculator } from './AHTCalculator';
 import { AISearchBox } from './AISearchBox';
+import { RichNoteEditor, RichNoteEditorHandle, detectLinksInContent, DetectedNoteLink } from './RichNoteEditor';
 import { 
   LogOut, 
   Image as ImageIcon, 
@@ -126,13 +125,13 @@ export function Notepad() {
   const [showLinkMenu, setShowLinkMenu] = useState(false);
   const [linkText, setLinkText] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
-  const [detectedUrls, setDetectedUrls] = useState<string[]>([]);
+  const [detectedLinks, setDetectedLinks] = useState<DetectedNoteLink[]>([]);
   const [urlNames, setUrlNames] = useState<Record<string, string>>({});
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>('root');
   const [newFolderName, setNewFolderName] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [aiSearchResults, setAiSearchResults] = useState<string[] | null>(null);
-  const quillRef = useRef<ReactQuill>(null);
+  const richEditorRef = useRef<RichNoteEditorHandle>(null);
 
   const isDark = preferences?.theme === 'dark';
   let currentBg = preferences?.backgroundImage;
@@ -282,85 +281,31 @@ export function Notepad() {
   };
 
   const insertCheckbox = () => {
-    if (!activeNote || !quillRef.current) return;
-    
-    const editor = quillRef.current.getEditor();
-    const selection = editor.getSelection();
-    const start = selection ? selection.index : editor.getLength() - 1;
-    
-    const currentText = editor.getText();
-    const isNewLine = start === 0 || currentText[start - 1] === '\n';
-    
-    // In rich text, it's better to just insert standard text if they want a checkbox,
-    // though real rich text checkboxes exist. We'll just insert the markdown format for now.
-    const insertText = isNewLine ? '- [ ] ' : '\n- [ ] ';
-    
-    editor.insertText(start, insertText);
-    editor.setSelection(start + insertText.length, 0);
-    
-    const newContent = editor.root.innerHTML;
-    setActiveNote({ ...activeNote, content: newContent });
-    updateNote(activeNote.id, activeNote.title || '', newContent, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
+    if (!activeNote) return;
+    richEditorRef.current?.insertCheckbox();
   };
 
   const insertLink = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeNote || !quillRef.current || !linkUrl.trim()) return;
+    if (!activeNote || !linkUrl.trim()) return;
     
-    const editor = quillRef.current.getEditor();
-    const selection = editor.getSelection();
-    const start = selection ? selection.index : editor.getLength() - 1;
-    const length = selection ? selection.length : 0;
-    
-    const textToUse = linkText.trim() || (length > 0 ? editor.getText(start, length) : linkUrl);
-    
-    // Instead of raw string manipulation, we use Quill API to insert
-    editor.deleteText(start, length);
-    editor.insertText(start, textToUse, 'link', linkUrl);
-    editor.setSelection(start + textToUse.length, 0);
-    
-    const newContent = editor.root.innerHTML;
-    
-    setActiveNote({ ...activeNote, content: newContent });
-    updateNote(activeNote.id, activeNote.title || '', newContent, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
-    
+    richEditorRef.current?.insertHyperlink(linkText, linkUrl);
     setShowLinkMenu(false);
     setLinkText('');
     setLinkUrl('');
   };
 
-  const getUnformattedUrls = (content: string) => {
-    // Basic detection for plain text urls that aren't already inside href="..."
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = content;
-    const allText = tempDiv.textContent || tempDiv.innerText || '';
-    const allUrls = allText.match(/https?:\/\/[^\s()]+/g) || [];
-    
-    // Filter out urls that are already links
-    const anchors = Array.from(tempDiv.querySelectorAll('a'));
-    const linkedUrls = new Set(anchors.map(a => a.href));
-    
-    return Array.from(new Set(allUrls)).filter(url => !linkedUrls.has(url));
-  };
-
   const formatDetectedLinks = () => {
-    if (!activeNote || !quillRef.current) return;
+    if (!activeNote || !richEditorRef.current) return;
     
-    const editor = quillRef.current.getEditor();
-    let currentHtml = editor.root.innerHTML;
-    
-    detectedUrls.forEach(url => {
-      const name = urlNames[url] || url;
-      // Very basic replace outside of HTML attributes
-      currentHtml = currentHtml.split(url).join(`<a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a>`);
+    const map: Record<string, string> = {};
+    detectedLinks.forEach(item => {
+      map[item.url] = urlNames[item.url] || item.suggestedName || item.url;
     });
     
-    editor.root.innerHTML = currentHtml;
-    
-    setActiveNote({ ...activeNote, content: currentHtml });
-    updateNote(activeNote.id, activeNote.title || '', currentHtml, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
+    richEditorRef.current.formatDetectedLinks(map);
     setShowLinkMenu(false);
-    setDetectedUrls([]);
+    setDetectedLinks([]);
     setUrlNames({});
   };
 
@@ -734,82 +679,122 @@ export function Notepad() {
                     const willShow = !showLinkMenu;
                     setShowLinkMenu(willShow);
                     if (willShow && activeNote) {
-                      const unformatted = getUnformattedUrls(activeNote.content);
-                      setDetectedUrls(unformatted);
+                      const detected = detectLinksInContent(activeNote.content);
+                      setDetectedLinks(detected);
                       
-                      if (quillRef.current) {
-                        const editor = quillRef.current.getEditor();
-                        const selection = editor.getSelection();
-                        if (selection && selection.length > 0) {
-                          setLinkText(editor.getText(selection.index, selection.length));
-                        }
+                      const initialNames: Record<string, string> = {};
+                      detected.forEach(d => {
+                        initialNames[d.url] = d.suggestedName;
+                      });
+                      setUrlNames(initialNames);
+                      
+                      const selected = richEditorRef.current?.getSelectedText();
+                      if (selected) {
+                        setLinkText(selected);
                       }
                     }
                   }}
                   className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
-                  title="Insert Hyperlink"
+                  title="Insert or Format Hyperlink"
                 >
                   <LinkIcon className="w-4 h-4" /> <span className="hidden sm:inline">Link</span>
                 </button>
                 {showLinkMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowLinkMenu(false)}></div>
-                    <div className={`absolute right-0 top-full mt-2 w-72 rounded-xl shadow-xl border z-50 p-3 transition-all origin-top-right overflow-y-auto max-h-96 ${isDark ? 'bg-neutral-900 border-neutral-700 text-neutral-200' : 'bg-white border-neutral-100'}`}>
-                      {detectedUrls.length > 0 && (
+                    <div className={`absolute right-0 top-full mt-2 w-80 rounded-2xl shadow-2xl border z-50 p-4 transition-all origin-top-right overflow-y-auto max-h-[28rem] ${isDark ? 'bg-neutral-900 border-neutral-700 text-neutral-200' : 'bg-white border-neutral-200'}`}>
+                      {detectedLinks.length > 0 && (
                         <div className="mb-4">
-                          <h4 className={`text-xs font-semibold mb-2 ${isDark ? 'text-neutral-300' : 'text-neutral-700'}`}>Format Existing Links</h4>
-                          <div className="space-y-2">
-                            {detectedUrls.map(url => (
-                              <div key={url} className={`p-2 rounded border ${isDark ? 'border-neutral-700 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'}`}>
-                                <div className="text-[10px] truncate mb-1 opacity-70" title={url}>{url}</div>
-                                <input
-                                  type="text"
-                                  placeholder="Name this link..."
-                                  value={urlNames[url] || ''}
-                                  onChange={(e) => setUrlNames(prev => ({ ...prev, [url]: e.target.value }))}
-                                  className={`w-full px-2 py-1 text-xs border rounded outline-none ${isDark ? 'bg-neutral-900 border-neutral-600 focus:border-neutral-400 text-white placeholder-neutral-500' : 'bg-white border-neutral-300 focus:border-neutral-500 text-neutral-900'}`}
-                                />
+                          <div className="flex items-center justify-between mb-1.5">
+                            <h4 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-neutral-300' : 'text-neutral-800'}`}>
+                              Detected Links in Note ({detectedLinks.length})
+                            </h4>
+                          </div>
+                          <p className={`text-[11px] mb-2.5 opacity-70 leading-snug ${isDark ? 'text-neutral-400' : 'text-neutral-600'}`}>
+                            Give these links a name so the URL stays hidden and only the clickable name appears:
+                          </p>
+                          <div className="space-y-2.5 max-h-52 overflow-y-auto pr-1">
+                            {detectedLinks.map(link => (
+                              <div key={link.url} className={`p-2.5 rounded-xl border ${isDark ? 'border-neutral-700/80 bg-neutral-800/80' : 'border-neutral-200 bg-neutral-50'}`}>
+                                <div className="text-[10px] truncate mb-1 text-blue-500 font-mono" title={link.url}>
+                                  {link.url}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="text"
+                                    placeholder="Desired Link Name..."
+                                    value={urlNames[link.url] ?? link.suggestedName}
+                                    onChange={(e) => setUrlNames(prev => ({ ...prev, [link.url]: e.target.value }))}
+                                    className={`flex-1 px-2.5 py-1 text-xs border rounded-lg outline-none ${
+                                      isDark 
+                                        ? 'bg-neutral-900 border-neutral-600 focus:border-blue-400 text-white placeholder-neutral-500' 
+                                        : 'bg-white border-neutral-300 focus:border-blue-500 text-neutral-900'
+                                    }`}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (!richEditorRef.current) return;
+                                      const name = urlNames[link.url] || link.suggestedName || link.url;
+                                      richEditorRef.current.formatDetectedLinks({ [link.url]: name });
+                                      setDetectedLinks(prev => prev.filter(p => p.url !== link.url));
+                                    }}
+                                    className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shrink-0 shadow-sm"
+                                    title="Convert this link"
+                                  >
+                                    Apply
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </div>
-                          <button 
-                            onClick={formatDetectedLinks}
-                            className={`w-full mt-2 py-1.5 text-xs font-semibold rounded-lg transition-colors ${isDark ? 'bg-[#00E5FF]/20 text-[#00E5FF] hover:bg-[#00E5FF]/30' : 'bg-black text-white hover:bg-neutral-800'}`}
-                          >
-                            Format All Detected
-                          </button>
+                          {detectedLinks.length > 1 && (
+                            <button 
+                              type="button"
+                              onClick={formatDetectedLinks}
+                              className="w-full mt-2.5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
+                            >
+                              Format All Links ({detectedLinks.length})
+                            </button>
+                          )}
                           <hr className={`my-3 border-t ${isDark ? 'border-neutral-700' : 'border-neutral-200'}`} />
                         </div>
                       )}
                       
-                      <h4 className={`text-xs font-semibold mb-2 ${isDark ? 'text-neutral-300' : 'text-neutral-700'}`}>Add New Link</h4>
+                      <h4 className={`text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-neutral-300' : 'text-neutral-800'}`}>
+                        Add New Hyperlink
+                      </h4>
                       <form onSubmit={insertLink} className="relative z-50 space-y-3">
                         <div>
-                          <label className={`block text-[10px] font-semibold uppercase tracking-wider mb-1 ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>Link Name (optional)</label>
+                          <label className={`block text-[10px] font-semibold uppercase tracking-wider mb-1 ${isDark ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                            Desired Link Name (appears in note)
+                          </label>
                           <input 
                             type="text" 
                             value={linkText}
                             onChange={(e) => setLinkText(e.target.value)}
-                            placeholder="My Website"
-                            className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:ring-0 outline-none transition-colors ${isDark ? 'bg-neutral-800 border-neutral-700 focus:border-neutral-500 text-white placeholder-neutral-500' : 'bg-white border-neutral-200 focus:border-neutral-400 text-neutral-900'}`}
+                            placeholder="e.g. Maths PDF or Google Drive"
+                            className={`w-full px-2.5 py-1.5 text-xs border rounded-lg focus:ring-1 focus:ring-blue-500 outline-none transition-colors ${isDark ? 'bg-neutral-800 border-neutral-700 text-white placeholder-neutral-500' : 'bg-white border-neutral-200 text-neutral-900'}`}
                           />
                         </div>
                         <div>
-                          <label className={`block text-[10px] font-semibold uppercase tracking-wider mb-1 ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>URL</label>
+                          <label className={`block text-[10px] font-semibold uppercase tracking-wider mb-1 ${isDark ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                            URL (will be hidden)
+                          </label>
                           <input 
                             type="url" 
                             required
                             value={linkUrl}
                             onChange={(e) => setLinkUrl(e.target.value)}
-                            placeholder="https://..."
-                            className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:ring-0 outline-none transition-colors ${isDark ? 'bg-neutral-800 border-neutral-700 focus:border-neutral-500 text-white placeholder-neutral-500' : 'bg-white border-neutral-200 focus:border-neutral-400 text-neutral-900'}`}
+                            placeholder="https://drive.google.com/..."
+                            className={`w-full px-2.5 py-1.5 text-xs border rounded-lg focus:ring-1 focus:ring-blue-500 outline-none transition-colors ${isDark ? 'bg-neutral-800 border-neutral-700 text-white placeholder-neutral-500' : 'bg-white border-neutral-200 text-neutral-900'}`}
                           />
                         </div>
                         <button 
                           type="submit" 
-                          className={`w-full py-1.5 text-xs font-semibold rounded-lg transition-colors ${isDark ? 'bg-white text-neutral-900 hover:bg-neutral-200' : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}
+                          className="w-full py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
                         >
-                          Insert Link
+                          Insert Clickable Hyperlink
                         </button>
                       </form>
                     </div>
@@ -924,17 +909,18 @@ export function Notepad() {
                   );
                 }
                 return (
-                  <ReactQuill
-                    theme="snow"
-                    modules={{ toolbar: false }}
-                    value={activeNote.content}
+                  <RichNoteEditor
+                    ref={richEditorRef}
+                    noteId={activeNote.id}
+                    content={activeNote.content}
                     onChange={(content) => {
                       setActiveNote({ ...activeNote, content });
                       updateNote(activeNote.id, activeNote.title || '', content, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
                     }}
-                    className={`flex-1 w-full outline-none resize-none ${activeNote.fontFamily || 'font-mono'} leading-relaxed ${isDark ? 'text-neutral-200 quill-dark' : 'text-neutral-800 quill-light'}`}
-                    style={{ fontSize: `${activeNote.fontSize || 14}px` }}
-                    placeholder="Start typing..."
+                    isDark={isDark}
+                    fontFamily={activeNote.fontFamily}
+                    fontSize={activeNote.fontSize}
+                    placeholder="Start typing your note..."
                   />
                 );
               })()}
@@ -1036,7 +1022,11 @@ const SortableNote: React.FC<SortableNoteProps> = ({
   };
 
   const title = note.title || 'Untitled Note';
-  const plainTextPreview = note.content.replace(/<[^>]*>?/gm, '');
+  const plainTextPreview = note.content
+    .replace(/<[^>]*>?/gm, ' ')
+    .replace(/\[([^\]]+)\]\s*\([^)]+\)/g, '$1')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
   const preview = plainTextPreview.substring(0, 120);
 
   return (
