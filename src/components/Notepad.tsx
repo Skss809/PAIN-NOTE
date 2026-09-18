@@ -1,4 +1,6 @@
 import React, { useState, FormEvent, ChangeEvent, useRef } from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { 
   DndContext, 
   closestCenter,
@@ -40,7 +42,7 @@ import {
   Moon,
   Sun,
   ListTodo, Grid, AlignLeft, Type, Minus, Folder, FolderPlus, Menu, X as CloseIcon, MoreVertical,
-  Calculator
+  Calculator, Link as LinkIcon
 } from 'lucide-react';
 import { Note, Folder as FolderType } from '../types';
 import defaultBg from '../assets/1784929805103.png';
@@ -121,11 +123,16 @@ export function Notepad() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showFontMenu, setShowFontMenu] = useState(false);
+  const [showLinkMenu, setShowLinkMenu] = useState(false);
+  const [linkText, setLinkText] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [detectedUrls, setDetectedUrls] = useState<string[]>([]);
+  const [urlNames, setUrlNames] = useState<Record<string, string>>({});
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>('root');
   const [newFolderName, setNewFolderName] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [aiSearchResults, setAiSearchResults] = useState<string[] | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const quillRef = useRef<ReactQuill>(null);
 
   const isDark = preferences?.theme === 'dark';
   let currentBg = preferences?.backgroundImage;
@@ -275,30 +282,86 @@ export function Notepad() {
   };
 
   const insertCheckbox = () => {
-    if (!activeNote || !textareaRef.current) return;
+    if (!activeNote || !quillRef.current) return;
     
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const currentContent = activeNote.content;
+    const editor = quillRef.current.getEditor();
+    const selection = editor.getSelection();
+    const start = selection ? selection.index : editor.getLength() - 1;
     
-    const beforeText = currentContent.substring(0, start);
-    const afterText = currentContent.substring(end);
+    const currentText = editor.getText();
+    const isNewLine = start === 0 || currentText[start - 1] === '\n';
     
-    const isNewLine = start === 0 || currentContent[start - 1] === '\n';
+    // In rich text, it's better to just insert standard text if they want a checkbox,
+    // though real rich text checkboxes exist. We'll just insert the markdown format for now.
     const insertText = isNewLine ? '- [ ] ' : '\n- [ ] ';
     
-    const newContent = beforeText + insertText + afterText;
+    editor.insertText(start, insertText);
+    editor.setSelection(start + insertText.length, 0);
     
+    const newContent = editor.root.innerHTML;
+    setActiveNote({ ...activeNote, content: newContent });
+    updateNote(activeNote.id, activeNote.title || '', newContent, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
+  };
+
+  const insertLink = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeNote || !quillRef.current || !linkUrl.trim()) return;
+    
+    const editor = quillRef.current.getEditor();
+    const selection = editor.getSelection();
+    const start = selection ? selection.index : editor.getLength() - 1;
+    const length = selection ? selection.length : 0;
+    
+    const textToUse = linkText.trim() || (length > 0 ? editor.getText(start, length) : linkUrl);
+    
+    // Instead of raw string manipulation, we use Quill API to insert
+    editor.deleteText(start, length);
+    editor.insertText(start, textToUse, 'link', linkUrl);
+    editor.setSelection(start + textToUse.length, 0);
+    
+    const newContent = editor.root.innerHTML;
+    
+    setActiveNote({ ...activeNote, content: newContent });
     updateNote(activeNote.id, activeNote.title || '', newContent, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
     
-    // Set focus back to textarea and move cursor
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(start + insertText.length, start + insertText.length);
-      }
-    }, 0);
+    setShowLinkMenu(false);
+    setLinkText('');
+    setLinkUrl('');
+  };
+
+  const getUnformattedUrls = (content: string) => {
+    // Basic detection for plain text urls that aren't already inside href="..."
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+    const allText = tempDiv.textContent || tempDiv.innerText || '';
+    const allUrls = allText.match(/https?:\/\/[^\s()]+/g) || [];
+    
+    // Filter out urls that are already links
+    const anchors = Array.from(tempDiv.querySelectorAll('a'));
+    const linkedUrls = new Set(anchors.map(a => a.href));
+    
+    return Array.from(new Set(allUrls)).filter(url => !linkedUrls.has(url));
+  };
+
+  const formatDetectedLinks = () => {
+    if (!activeNote || !quillRef.current) return;
+    
+    const editor = quillRef.current.getEditor();
+    let currentHtml = editor.root.innerHTML;
+    
+    detectedUrls.forEach(url => {
+      const name = urlNames[url] || url;
+      // Very basic replace outside of HTML attributes
+      currentHtml = currentHtml.split(url).join(`<a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a>`);
+    });
+    
+    editor.root.innerHTML = currentHtml;
+    
+    setActiveNote({ ...activeNote, content: currentHtml });
+    updateNote(activeNote.id, activeNote.title || '', currentHtml, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
+    setShowLinkMenu(false);
+    setDetectedUrls([]);
+    setUrlNames({});
   };
 
 
@@ -665,6 +728,94 @@ export function Notepad() {
                   </>
                 )}
               </div>
+              <div className="relative">
+                <button 
+                  onClick={() => {
+                    const willShow = !showLinkMenu;
+                    setShowLinkMenu(willShow);
+                    if (willShow && activeNote) {
+                      const unformatted = getUnformattedUrls(activeNote.content);
+                      setDetectedUrls(unformatted);
+                      
+                      if (quillRef.current) {
+                        const editor = quillRef.current.getEditor();
+                        const selection = editor.getSelection();
+                        if (selection && selection.length > 0) {
+                          setLinkText(editor.getText(selection.index, selection.length));
+                        }
+                      }
+                    }
+                  }}
+                  className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
+                  title="Insert Hyperlink"
+                >
+                  <LinkIcon className="w-4 h-4" /> <span className="hidden sm:inline">Link</span>
+                </button>
+                {showLinkMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowLinkMenu(false)}></div>
+                    <div className={`absolute right-0 top-full mt-2 w-72 rounded-xl shadow-xl border z-50 p-3 transition-all origin-top-right overflow-y-auto max-h-96 ${isDark ? 'bg-neutral-900 border-neutral-700 text-neutral-200' : 'bg-white border-neutral-100'}`}>
+                      {detectedUrls.length > 0 && (
+                        <div className="mb-4">
+                          <h4 className={`text-xs font-semibold mb-2 ${isDark ? 'text-neutral-300' : 'text-neutral-700'}`}>Format Existing Links</h4>
+                          <div className="space-y-2">
+                            {detectedUrls.map(url => (
+                              <div key={url} className={`p-2 rounded border ${isDark ? 'border-neutral-700 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'}`}>
+                                <div className="text-[10px] truncate mb-1 opacity-70" title={url}>{url}</div>
+                                <input
+                                  type="text"
+                                  placeholder="Name this link..."
+                                  value={urlNames[url] || ''}
+                                  onChange={(e) => setUrlNames(prev => ({ ...prev, [url]: e.target.value }))}
+                                  className={`w-full px-2 py-1 text-xs border rounded outline-none ${isDark ? 'bg-neutral-900 border-neutral-600 focus:border-neutral-400 text-white placeholder-neutral-500' : 'bg-white border-neutral-300 focus:border-neutral-500 text-neutral-900'}`}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <button 
+                            onClick={formatDetectedLinks}
+                            className={`w-full mt-2 py-1.5 text-xs font-semibold rounded-lg transition-colors ${isDark ? 'bg-[#00E5FF]/20 text-[#00E5FF] hover:bg-[#00E5FF]/30' : 'bg-black text-white hover:bg-neutral-800'}`}
+                          >
+                            Format All Detected
+                          </button>
+                          <hr className={`my-3 border-t ${isDark ? 'border-neutral-700' : 'border-neutral-200'}`} />
+                        </div>
+                      )}
+                      
+                      <h4 className={`text-xs font-semibold mb-2 ${isDark ? 'text-neutral-300' : 'text-neutral-700'}`}>Add New Link</h4>
+                      <form onSubmit={insertLink} className="relative z-50 space-y-3">
+                        <div>
+                          <label className={`block text-[10px] font-semibold uppercase tracking-wider mb-1 ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>Link Name (optional)</label>
+                          <input 
+                            type="text" 
+                            value={linkText}
+                            onChange={(e) => setLinkText(e.target.value)}
+                            placeholder="My Website"
+                            className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:ring-0 outline-none transition-colors ${isDark ? 'bg-neutral-800 border-neutral-700 focus:border-neutral-500 text-white placeholder-neutral-500' : 'bg-white border-neutral-200 focus:border-neutral-400 text-neutral-900'}`}
+                          />
+                        </div>
+                        <div>
+                          <label className={`block text-[10px] font-semibold uppercase tracking-wider mb-1 ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>URL</label>
+                          <input 
+                            type="url" 
+                            required
+                            value={linkUrl}
+                            onChange={(e) => setLinkUrl(e.target.value)}
+                            placeholder="https://..."
+                            className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:ring-0 outline-none transition-colors ${isDark ? 'bg-neutral-800 border-neutral-700 focus:border-neutral-500 text-white placeholder-neutral-500' : 'bg-white border-neutral-200 focus:border-neutral-400 text-neutral-900'}`}
+                          />
+                        </div>
+                        <button 
+                          type="submit" 
+                          className={`w-full py-1.5 text-xs font-semibold rounded-lg transition-colors ${isDark ? 'bg-white text-neutral-900 hover:bg-neutral-200' : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}
+                        >
+                          Insert Link
+                        </button>
+                      </form>
+                    </div>
+                  </>
+                )}
+              </div>
                 {activeNote.templateType !== 'Todo List' && (
                 <button 
                   onClick={insertCheckbox}
@@ -773,14 +924,15 @@ export function Notepad() {
                   );
                 }
                 return (
-                  <textarea
-                    ref={textareaRef}
+                  <ReactQuill
+                    theme="snow"
+                    modules={{ toolbar: false }}
                     value={activeNote.content}
-                    onChange={(e) => {
-                      setActiveNote({ ...activeNote, content: e.target.value });
-                      updateNote(activeNote.id, activeNote.title || '', e.target.value, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
+                    onChange={(content) => {
+                      setActiveNote({ ...activeNote, content });
+                      updateNote(activeNote.id, activeNote.title || '', content, activeNote.templateType, activeNote.fontFamily, activeNote.fontSize, activeNote.isGridView);
                     }}
-                    className={`flex-1 w-full bg-transparent outline-none resize-none ${activeNote.fontFamily || 'font-mono'} leading-relaxed ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}
+                    className={`flex-1 w-full outline-none resize-none ${activeNote.fontFamily || 'font-mono'} leading-relaxed ${isDark ? 'text-neutral-200 quill-dark' : 'text-neutral-800 quill-light'}`}
                     style={{ fontSize: `${activeNote.fontSize || 14}px` }}
                     placeholder="Start typing..."
                   />
@@ -884,7 +1036,8 @@ const SortableNote: React.FC<SortableNoteProps> = ({
   };
 
   const title = note.title || 'Untitled Note';
-  const preview = note.content.substring(0, 120);
+  const plainTextPreview = note.content.replace(/<[^>]*>?/gm, '');
+  const preview = plainTextPreview.substring(0, 120);
 
   return (
     <div 

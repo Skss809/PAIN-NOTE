@@ -1,1 +1,23 @@
 @import "tailwindcss";
+.ql-container.ql-snow {
+  border: none !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+}
+.ql-editor {
+  padding: 0 !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+.ql-editor a {
+  color: #3b82f6 !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+}
+.quill-dark .ql-editor {
+  color: #e5e5e5;
+}
+.quill-light .ql-editor {
+  color: #262626;
+}
