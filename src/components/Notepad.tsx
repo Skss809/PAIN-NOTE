@@ -24,6 +24,8 @@ import { TodoListEditor } from './TodoListEditor';
 import { AHTCalculator } from './AHTCalculator';
 import { AISearchBox } from './AISearchBox';
 import { RichNoteEditor, RichNoteEditorHandle, detectLinksInContent, DetectedNoteLink } from './RichNoteEditor';
+import { LiveClock } from './LiveClock';
+import { MiniRoundClock } from './MiniRoundClock';
 import { 
   LogOut, 
   Image as ImageIcon, 
@@ -107,7 +109,8 @@ export function Notepad() {
   };
 
   const [activeNote, setActiveNote] = useState<Note | null>(null);
-  const [activeView, setActiveView] = useState<'notes' | 'aht'>('notes');
+  const [activeView, setActiveView] = useState<'notes' | 'aht' | 'clock'>('notes');
+  const [showFloatingClock, setShowFloatingClock] = useState(false);
 
   const isGridView = activeNote ? !!activeNote.isGridView : false;
 
@@ -363,6 +366,27 @@ export function Notepad() {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-4">
+            {/* Live Round Clock Navigation Option */}
+            <button
+              onClick={() => {
+                if (activeView === 'clock') {
+                  setActiveView('notes');
+                } else {
+                  setActiveView('clock');
+                  setActiveNote(null);
+                }
+              }}
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 rounded-xl text-sm font-medium transition-all border ${
+                activeView === 'clock'
+                  ? (isDark ? 'bg-[#00E5FF]/20 text-[#00E5FF] border-[#00E5FF]/40 shadow-[0_0_15px_rgba(0,229,255,0.25)]' : 'bg-blue-50 text-blue-600 border-blue-200 shadow-sm')
+                  : (isDark ? 'bg-white/10 hover:bg-white/20 text-white border-white/5' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-800 border-neutral-200/60')
+              }`}
+              title="Live Round Animated Clock"
+            >
+              <MiniRoundClock size={18} isDark={isDark} />
+              <span className="hidden sm:inline font-medium">Clock</span>
+            </button>
+
             <div className="relative">
               <button 
                 onClick={() => setShowNewMenu(!showNewMenu)}
@@ -444,6 +468,25 @@ export function Notepad() {
                         <option value={5}>5 Columns</option>
                         <option value={6}>6 Columns</option>
                       </select>
+                    </div>
+
+                    {/* Floating Live Clock Setting */}
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm font-medium">Floating Clock</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowFloatingClock(!showFloatingClock)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          showFloatingClock ? (isDark ? 'bg-[#00E5FF]' : 'bg-blue-600') : (isDark ? 'bg-neutral-800 border border-neutral-700' : 'bg-neutral-300')
+                        }`}
+                        title="Toggle floating round clock widget"
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            showFloatingClock ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
                     </div>
                     
                     {/* Background Settings */}
@@ -570,6 +613,29 @@ export function Notepad() {
             {/* Tools Section */}
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 px-1 mb-1">Tools & Utilities</span>
+              
+              {/* Live Round Animated Clock */}
+              <button
+                onClick={() => { setActiveView('clock'); setActiveNote(null); }}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  activeView === 'clock'
+                    ? 'bg-[#00E5FF]/20 text-[#00E5FF] font-semibold border border-[#00E5FF]/40 shadow-[0_0_15px_rgba(0,229,255,0.2)]'
+                    : (isDark ? 'hover:bg-white/5 text-neutral-300' : 'hover:bg-black/5 text-neutral-700')
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <MiniRoundClock size={18} isDark={isDark} />
+                  <span>Live Round Clock</span>
+                </div>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                  activeView === 'clock'
+                    ? 'bg-[#00E5FF]/30 text-[#00E5FF]'
+                    : (isDark ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800')
+                }`}>
+                  Live
+                </span>
+              </button>
+
               <button
                 onClick={() => { setActiveView('aht'); setActiveNote(null); }}
                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -591,6 +657,8 @@ export function Notepad() {
         
         {activeView === 'aht' ? (
           <AHTCalculator isDark={isDark} />
+        ) : activeView === 'clock' ? (
+          <LiveClock isDark={isDark} onClose={() => setActiveView('notes')} />
         ) : activeNote ? (
           <div className={`flex-1 w-full backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col border ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-200 ${isDark ? 'bg-black/80 border-white/10' : 'bg-white/95 border-white/40'}`}>
             <div className={`px-4 sm:px-6 py-3 sm:py-4 border-b flex flex-wrap items-center justify-between gap-2 overflow-visible ${isDark ? 'border-neutral-800 bg-neutral-900/50' : 'border-neutral-100 bg-white/50'}`}>
@@ -978,6 +1046,28 @@ export function Notepad() {
         )}
         </div>
       </main>
+
+      {/* Floating Pinned Live Round Clock */}
+      {showFloatingClock && (
+        <div 
+          onClick={() => { setActiveView('clock'); setActiveNote(null); }}
+          className={`fixed bottom-6 right-6 z-40 p-3 rounded-2xl shadow-2xl border backdrop-blur-xl flex items-center gap-3 cursor-pointer group transition-all hover:scale-105 ${
+            isDark 
+              ? 'bg-black/85 border-[#00E5FF]/30 text-white shadow-[0_10px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(0,229,255,0.2)]' 
+              : 'bg-white/95 border-blue-200 text-neutral-900 shadow-xl'
+          }`}
+          title="Click to open Fullscreen Live Clock"
+        >
+          <MiniRoundClock size={36} isDark={isDark} showDigits={true} />
+          <button 
+            onClick={(e) => { e.stopPropagation(); setShowFloatingClock(false); }}
+            className={`p-1 rounded-md opacity-40 hover:opacity-100 transition-opacity ${isDark ? 'hover:bg-neutral-800' : 'hover:bg-neutral-200'}`}
+            title="Hide Floating Clock"
+          >
+            <CloseIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

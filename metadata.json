@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "PAINS'S NOTE",
+  "description": "Rich interactive note-taking workspace with folders, live animated round clock, AHT calculator, and AI search.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
