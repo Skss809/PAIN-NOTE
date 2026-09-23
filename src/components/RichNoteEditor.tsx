@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import { ExternalLink, Copy, Check, Trash2, Edit3, Link as LinkIcon } from 'lucide-react';
+import { cleanHtmlSpans, htmlToPlainText } from '../lib/htmlUtils';
 
 export interface DetectedNoteLink {
   url: string;
@@ -79,7 +80,7 @@ export function detectLinksInContent(htmlOrText: string): DetectedNoteLink[] {
 
 export function formatContentForDisplay(rawContent: string): string {
   if (!rawContent) return '';
-  let result = rawContent;
+  let result = cleanHtmlSpans(rawContent);
 
   // Convert markdown links: [Name](URL) or [Name]\n(URL)
   result = result.replace(/\[([^\]]+)\]\s*\((https?:\/\/[^\s\)]+)\)/g, (_match, name, url) => {
@@ -99,6 +100,7 @@ export interface RichNoteEditorHandle {
   formatDetectedLinks: (urlMap: Record<string, string>) => void;
   insertCheckbox: () => void;
   getSelectedText: () => string;
+  getCleanPlainText: () => string;
 }
 
 interface RichNoteEditorProps {
@@ -160,11 +162,55 @@ export const RichNoteEditor = forwardRef<RichNoteEditorHandle, RichNoteEditorPro
   const handleInput = () => {
     if (!editorRef.current) return;
     isInternalChange.current = true;
-    const currentHtml = editorRef.current.innerHTML;
+    const currentHtml = cleanHtmlSpans(editorRef.current.innerHTML);
     onChange(currentHtml);
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    if (!text) return;
+
+    // Use document.execCommand('insertText') to preserve undo stack and avoid injecting HTML codes
+    const success = document.execCommand('insertText', false, text);
+    if (!success) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        const textNode = document.createTextNode(text);
+        range.insertNode(textNode);
+        range.setStartAfter(textNode);
+        range.setEndAfter(textNode);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+    handleInput();
+  };
+
+  const handleCopy = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    try {
+      const range = sel.getRangeAt(0);
+      const container = document.createElement('div');
+      container.appendChild(range.cloneContents());
+      const cleanText = htmlToPlainText(container.innerHTML);
+      if (cleanText) {
+        e.clipboardData.setData('text/plain', cleanText);
+        e.preventDefault();
+      }
+    } catch {
+      // Fallback: allow browser native copy
+    }
+  };
+
   useImperativeHandle(ref, () => ({
+    getCleanPlainText: () => {
+      if (!editorRef.current) return '';
+      return htmlToPlainText(editorRef.current.innerHTML);
+    },
     getSelectedText: () => {
       const sel = window.getSelection();
       if (sel && editorRef.current?.contains(sel.anchorNode)) {
@@ -274,12 +320,17 @@ export const RichNoteEditor = forwardRef<RichNoteEditorHandle, RichNoteEditorPro
   };
 
   return (
-    <div className="relative flex-1 w-full flex flex-col min-h-0">
+    <div 
+      className="relative flex-1 w-full flex flex-col min-h-0"
+      style={{ fontSize: `${fontSize}px` }}
+    >
       <div
         ref={editorRef}
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
+        onPaste={handlePaste}
+        onCopy={handleCopy}
         onKeyUp={saveSelection}
         onMouseUp={saveSelection}
         onClick={handleClick}
@@ -288,7 +339,6 @@ export const RichNoteEditor = forwardRef<RichNoteEditorHandle, RichNoteEditorPro
           isDark ? 'text-neutral-100 quill-dark' : 'text-neutral-900 quill-light'
         }`}
         style={{
-          fontSize: `${fontSize}px`,
           minHeight: '200px',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word'

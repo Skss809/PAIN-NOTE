@@ -20,6 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useAuth } from '../hooks/useAuth';
 import { useNotes } from '../hooks/useNotes';
 import { parseToGrid } from '../lib/gridParser';
+import { htmlToPlainText, copyTextToClipboard } from '../lib/htmlUtils';
 import { TodoListEditor } from './TodoListEditor';
 import { AHTCalculator } from './AHTCalculator';
 import { AISearchBox } from './AISearchBox';
@@ -155,12 +156,12 @@ export function Notepad() {
 
   const getGridColsClass = (cols?: number) => {
     switch (cols) {
-      case 2: return 'grid-cols-2 md:grid-cols-2';
-      case 3: return 'grid-cols-2 md:grid-cols-3';
-      case 4: return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
-      case 5: return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
-      case 6: return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6';
-      default: return 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+      case 2: return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2';
+      case 3: return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3';
+      case 4: return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
+      case 5: return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
+      case 6: return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6';
+      default: return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
     }
   };
 
@@ -185,8 +186,8 @@ export function Notepad() {
     }
   };
 
-  const handleCopy = (content: string, id: string) => {
-    navigator.clipboard.writeText(content);
+  const handleCopy = async (content: string, id: string) => {
+    await copyTextToClipboard(content);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -879,7 +880,10 @@ export function Notepad() {
                 </button>
                 )}
                 <button 
-                  onClick={() => handleCopy(activeNote.content, activeNote.id)}
+                  onClick={() => {
+                    const liveText = richEditorRef.current?.getCleanPlainText();
+                    handleCopy(liveText || activeNote.content, activeNote.id);
+                  }}
                   className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-colors ${isDark ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
                 >
                   {copiedId === activeNote.id ? (
@@ -914,7 +918,7 @@ export function Notepad() {
               />
               {(() => {
                 if (isGridView) {
-                  const gridData = parseToGrid(activeNote.content);
+                  const gridData = parseToGrid(htmlToPlainText(activeNote.content));
                   if (gridData.layout === 'grid') {
                     return (
                       <div className="flex-1 w-full overflow-auto mt-4">
@@ -1112,11 +1116,7 @@ const SortableNote: React.FC<SortableNoteProps> = ({
   };
 
   const title = note.title || 'Untitled Note';
-  const plainTextPreview = note.content
-    .replace(/<[^>]*>?/gm, ' ')
-    .replace(/\[([^\]]+)\]\s*\([^)]+\)/g, '$1')
-    .replace(/&nbsp;/g, ' ')
-    .trim();
+  const plainTextPreview = htmlToPlainText(note.content);
   const preview = plainTextPreview.substring(0, 120);
 
   return (

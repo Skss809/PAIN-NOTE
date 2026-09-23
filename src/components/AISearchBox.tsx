@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Sparkles, Loader2 } from 'lucide-react';
 import { Note } from '../types';
+import { htmlToPlainText } from '../lib/htmlUtils';
 
 interface AISearchBoxProps {
   notes: Note[];
@@ -28,7 +29,7 @@ export function AISearchBox({ notes, onSearchResults, isDark }: AISearchBoxProps
         },
         body: JSON.stringify({
           keyword: query,
-          notes: notes.map(n => ({ id: n.id, title: n.title, content: n.content }))
+          notes: notes.map(n => ({ id: n.id, title: n.title, content: htmlToPlainText(n.content) }))
         })
       });
 

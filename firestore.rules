@@ -90,8 +90,9 @@ service cloud.firestore {
         && data.userId == request.auth.uid
         && data.userId == docId
         && data.updatedAt is number
-        && (!data.keys().hasAll(['backgroundImage']) || (data.backgroundImage is string && data.backgroundImage.size() <= 1048487))
-        && (!data.keys().hasAll(['theme']) || (data.theme in ['light', 'dark']));
+        && (!data.keys().hasAny(['backgroundImage']) || (data.backgroundImage is string && data.backgroundImage.size() <= 1048487))
+        && (!data.keys().hasAny(['theme']) || (data.theme in ['light', 'dark']))
+        && (!data.keys().hasAny(['gridColumns']) || (data.gridColumns is number && data.gridColumns >= 2 && data.gridColumns <= 6));
     }
 
     match /user_preferences/{userId} {
@@ -100,14 +101,15 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && isValidId(userId)
         && userId == request.auth.uid
-        && isValidUserPreferences(incoming(), userId);
+        && isValidUserPreferences(incoming(), userId)
+        && incoming().keys().hasOnly(['userId', 'updatedAt', 'backgroundImage', 'theme', 'gridColumns']);
         
       allow update: if isSignedIn()
         && isValidId(userId)
         && userId == request.auth.uid
         && isValidUserPreferences(incoming(), userId)
         && incoming().userId == existing().userId
-        && incoming().diff(existing()).affectedKeys().hasOnly(['backgroundImage', 'theme', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['backgroundImage', 'theme', 'gridColumns', 'updatedAt']);
     }
   }
 }

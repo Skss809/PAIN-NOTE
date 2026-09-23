@@ -48,6 +48,15 @@
           "maxLength": 2048,
           "description": "URL of the custom background image"
         },
+        "theme": {
+          "type": "string",
+          "enum": ["light", "dark"],
+          "description": "User interface theme preference"
+        },
+        "gridColumns": {
+          "type": "number",
+          "description": "Number of columns for desktop notes grid view (2 to 6)"
+        },
         "updatedAt": {
           "type": "string",
           "description": "ISO timestamp of last update"

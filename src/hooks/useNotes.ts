@@ -19,7 +19,21 @@ export function useNotes() {
   const { user } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+  const [preferences, setPreferences] = useState<UserPreferences | null>(() => {
+    try {
+      const savedCols = localStorage.getItem('user_grid_columns');
+      if (savedCols) {
+        return {
+          userId: '',
+          gridColumns: parseInt(savedCols, 10),
+          updatedAt: Date.now()
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -75,7 +89,27 @@ export function useNotes() {
     const prefRef = doc(db, 'user_preferences', user.uid);
     const unsubPref = onSnapshot(prefRef, (docSnap) => {
       if (docSnap.exists()) {
-        setPreferences(docSnap.data() as UserPreferences);
+        const data = docSnap.data() as UserPreferences;
+        const savedCols = localStorage.getItem('user_grid_columns');
+        if (!data.gridColumns && savedCols) {
+          data.gridColumns = parseInt(savedCols, 10);
+        } else if (data.gridColumns) {
+          try {
+            localStorage.setItem('user_grid_columns', data.gridColumns.toString());
+          } catch {
+            // ignore
+          }
+        }
+        setPreferences(data);
+      } else {
+        const savedCols = localStorage.getItem('user_grid_columns');
+        if (savedCols) {
+          setPreferences({
+            userId: user.uid,
+            gridColumns: parseInt(savedCols, 10),
+            updatedAt: Date.now()
+          });
+        }
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `user_preferences/${user.uid}`);
@@ -212,6 +246,11 @@ export function useNotes() {
   };
 
   const updateTheme = async (theme: 'light' | 'dark') => {
+    setPreferences((prev) => 
+      prev 
+        ? { ...prev, theme } 
+        : { userId: user ? user.uid : '', theme, updatedAt: Date.now() }
+    );
     if (!user) return;
     const prefRef = doc(db, 'user_preferences', user.uid);
     try {
@@ -234,6 +273,20 @@ export function useNotes() {
   };
 
   const updateGridColumns = async (gridColumns: number) => {
+    // 1. Instantly update local React state so UI updates immediately with zero latency and never snaps back
+    setPreferences((prev) => 
+      prev 
+        ? { ...prev, gridColumns } 
+        : { userId: user ? user.uid : '', gridColumns, updatedAt: Date.now() }
+    );
+
+    // 2. Cache in localStorage for persistence across reloads and sessions
+    try {
+      localStorage.setItem('user_grid_columns', gridColumns.toString());
+    } catch {
+      // ignore
+    }
+
     if (!user) return;
     const prefRef = doc(db, 'user_preferences', user.uid);
     try {
