@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getExactInternetDate, getInternetTimeState, subscribeInternetTime } from '../lib/internetTime';
 
 interface MiniRoundClockProps {
   size?: number;
@@ -13,12 +14,18 @@ export const MiniRoundClock: React.FC<MiniRoundClockProps> = ({
 }) => {
   const [angles, setAngles] = useState({ hour: 0, minute: 0, second: 0 });
   const [digitalTime, setDigitalTime] = useState('');
+  const [timeState, setTimeState] = useState(getInternetTimeState);
+
+  useEffect(() => {
+    return subscribeInternetTime(setTimeState);
+  }, []);
 
   useEffect(() => {
     let animId: number;
 
     const update = () => {
-      const now = new Date();
+      // Use exact internet synchronized date at current detected location
+      const now = getExactInternetDate();
       const ms = now.getMilliseconds();
       const s = now.getSeconds() + ms / 1000;
       const m = now.getMinutes() + s / 60;
@@ -45,7 +52,10 @@ export const MiniRoundClock: React.FC<MiniRoundClockProps> = ({
   }, [showDigits]);
 
   return (
-    <div className="flex items-center gap-1.5 select-none pointer-events-none">
+    <div 
+      className="flex items-center gap-1.5 select-none pointer-events-none"
+      title={timeState.synced ? `Internet Synced (${timeState.detectedLocation.city || 'Mumbai'}, ${timeState.detectedLocation.country || 'India'})` : 'Live Precision Clock (Mumbai, India)'}
+    >
       <div 
         className="relative rounded-full flex items-center justify-center shrink-0 shadow-sm transition-transform"
         style={{ width: size, height: size }}

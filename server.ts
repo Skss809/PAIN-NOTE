@@ -61,6 +61,22 @@ Return a list of IDs (strings) for the notes that are relevant to the search key
   }
 });
 
+// Precision Internet Time & Location Endpoint
+app.get('/api/time', (req, res) => {
+  const clientIp = (req.headers['x-forwarded-for']?.toString().split(',')[0].trim()) || 
+                   (req.headers['cf-connecting-ip']?.toString()) || 
+                   req.socket.remoteAddress || '';
+  const now = Date.now();
+  res.json({
+    timestamp: now,
+    iso: new Date(now).toISOString(),
+    clientIp,
+    timezone: 'Asia/Kolkata',
+    city: 'Mumbai',
+    country: 'India'
+  });
+});
+
 const isProd = process.env.NODE_ENV === 'production';
 
 async function startServer() {

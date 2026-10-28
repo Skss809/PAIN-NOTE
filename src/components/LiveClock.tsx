@@ -16,8 +16,14 @@ import {
   Flag,
   Calendar,
   Compass,
-  Zap
+  Zap,
+  RefreshCw,
+  MapPin,
+  Wifi,
+  Radio,
+  CheckCircle2
 } from 'lucide-react';
+import { useInternetTime } from '../hooks/useInternetTime';
 
 interface LiveClockProps {
   isDark?: boolean;
@@ -32,16 +38,28 @@ interface WorldCity {
   country: string;
   timezone: string;
   flag: string;
+  region?: string;
 }
 
+const INDIAN_CITIES: WorldCity[] = [
+  { city: 'Mumbai', region: 'Maharashtra', country: 'India', timezone: 'Asia/Kolkata', flag: '🇮🇳' },
+  { city: 'New Delhi', region: 'Delhi', country: 'India', timezone: 'Asia/Kolkata', flag: '🇮🇳' },
+  { city: 'Bengaluru', region: 'Karnataka', country: 'India', timezone: 'Asia/Kolkata', flag: '🇮🇳' },
+  { city: 'Kolkata', region: 'West Bengal', country: 'India', timezone: 'Asia/Kolkata', flag: '🇮🇳' },
+  { city: 'Chennai', region: 'Tamil Nadu', country: 'India', timezone: 'Asia/Kolkata', flag: '🇮🇳' },
+  { city: 'Hyderabad', region: 'Telangana', country: 'India', timezone: 'Asia/Kolkata', flag: '🇮🇳' },
+  { city: 'Pune', region: 'Maharashtra', country: 'India', timezone: 'Asia/Kolkata', flag: '🇮🇳' },
+  { city: 'Ahmedabad', region: 'Gujarat', country: 'India', timezone: 'Asia/Kolkata', flag: '🇮🇳' },
+];
+
 const WORLD_CITIES: WorldCity[] = [
+  { city: 'Dubai', country: 'United Arab Emirates', timezone: 'Asia/Dubai', flag: '🇦🇪' },
   { city: 'London', country: 'United Kingdom', timezone: 'Europe/London', flag: '🇬🇧' },
   { city: 'New York', country: 'United States', timezone: 'America/New_York', flag: '🇺🇸' },
   { city: 'Tokyo', country: 'Japan', timezone: 'Asia/Tokyo', flag: '🇯🇵' },
-  { city: 'Dubai', country: 'United Arab Emirates', timezone: 'Asia/Dubai', flag: '🇦🇪' },
+  { city: 'Singapore', country: 'Singapore', timezone: 'Asia/Singapore', flag: '🇸🇬' },
   { city: 'Paris', country: 'France', timezone: 'Europe/Paris', flag: '🇫🇷' },
   { city: 'Sydney', country: 'Australia', timezone: 'Australia/Sydney', flag: '🇦🇺' },
-  { city: 'Singapore', country: 'Singapore', timezone: 'Asia/Singapore', flag: '🇸🇬' },
   { city: 'San Francisco', country: 'United States', timezone: 'America/Los_Angeles', flag: '🇺🇸' },
 ];
 
@@ -53,6 +71,9 @@ export const LiveClock: React.FC<LiveClockProps> = ({ isDark = true, onClose }) 
   const [soundEnabled, setSoundEnabled] = useState<boolean>(false);
   const [is24Hour, setIs24Hour] = useState<boolean>(false);
   const [selectedCity, setSelectedCity] = useState<WorldCity | null>(null);
+
+  // Internet Time & Geo-Location Synchronizer
+  const internetTime = useInternetTime();
 
   // Time state updated via requestAnimationFrame
   const [timeData, setTimeData] = useState({
@@ -119,23 +140,18 @@ export const LiveClock: React.FC<LiveClockProps> = ({ isDark = true, onClose }) 
   const [timerRemainingSec, setTimerRemainingSec] = useState(25 * 60);
   const timerIntervalRef = useRef<number | null>(null);
 
-  // Animation Frame loop for silky 60fps clock hands
+  // Animation Frame loop for silky 60fps clock hands powered by Internet Time
   useEffect(() => {
     let animId: number;
 
     const updateClock = () => {
-      const now = new Date();
+      // If a specific world city is selected, use that city's timezone;
+      // otherwise, use the user's detected internet location timezone!
+      const targetTimezone = selectedCity 
+        ? selectedCity.timezone 
+        : internetTime.detectedLocation.timezone;
 
-      // If world city is selected, adjust time
-      let targetDate = now;
-      if (selectedCity) {
-        try {
-          const str = now.toLocaleString('en-US', { timeZone: selectedCity.timezone });
-          targetDate = new Date(str);
-        } catch {
-          targetDate = now;
-        }
-      }
+      const targetDate = internetTime.getExactDate(targetTimezone);
 
       const hours = targetDate.getHours();
       const minutes = targetDate.getMinutes();
@@ -175,9 +191,9 @@ export const LiveClock: React.FC<LiveClockProps> = ({ isDark = true, onClose }) 
       const dayOfWeek = targetDate.toLocaleDateString(undefined, { weekday: 'short' });
       const dateString = `${targetDate.getDate()} ${targetDate.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}`;
       
-      const tz = selectedCity 
-        ? `${selectedCity.city} (${selectedCity.timezone.split('/')[1]?.replace('_', ' ') || ''})`
-        : (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local Time');
+      const tzLabel = selectedCity 
+        ? `${selectedCity.city} (${selectedCity.timezone.split('/')[1]?.replace(/_/g, ' ') || ''})`
+        : `${internetTime.detectedLocation.city || 'Current Location'}${internetTime.detectedLocation.country ? `, ${internetTime.detectedLocation.country}` : ''} (${internetTime.detectedLocation.timezone})`;
 
       setTimeData({
         hours,
@@ -192,7 +208,7 @@ export const LiveClock: React.FC<LiveClockProps> = ({ isDark = true, onClose }) 
         amPm,
         dayOfWeek,
         fullDate,
-        timezone: tz
+        timezone: tzLabel
       });
 
       animId = requestAnimationFrame(updateClock);
@@ -200,7 +216,7 @@ export const LiveClock: React.FC<LiveClockProps> = ({ isDark = true, onClose }) 
 
     animId = requestAnimationFrame(updateClock);
     return () => cancelAnimationFrame(animId);
-  }, [smoothSweep, is24Hour, selectedCity, soundEnabled]);
+  }, [smoothSweep, is24Hour, selectedCity, soundEnabled, internetTime]);
 
   // Stopwatch interval
   useEffect(() => {
@@ -397,22 +413,72 @@ export const LiveClock: React.FC<LiveClockProps> = ({ isDark = true, onClose }) 
             <Clock className="w-5 h-5 animate-spin" style={{ animationDuration: '30s' }} />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg sm:text-xl font-bold tracking-tight">Live Precision Clock</h2>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                isDark ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800'
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight">Internet Precision Clock</h2>
+              <div className={`flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                internetTime.synced
+                  ? (isDark ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border border-emerald-300')
+                  : (isDark ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-800 border border-amber-300')
               }`}>
-                Live Synchronized
-              </span>
+                <span className={`w-2 h-2 rounded-full ${internetTime.synced ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+                <span>{internetTime.syncing ? 'Syncing...' : internetTime.synced ? 'Internet Synchronized' : 'System Fallback'}</span>
+              </div>
             </div>
-            <p className={`text-xs ${isDark ? 'text-neutral-400' : 'text-neutral-500'}`}>
-              High-frequency animated analog escapement & temporal utilities
-            </p>
+            <div className={`text-xs flex items-center flex-wrap gap-1.5 mt-0.5 ${isDark ? 'text-neutral-400' : 'text-neutral-500'}`}>
+              <span className="flex items-center gap-1 text-[#00E5FF]">
+                <MapPin className="w-3.5 h-3.5" /> Current Location:
+              </span>
+              <span className={`font-semibold ${isDark ? 'text-neutral-200' : 'text-neutral-800'}`}>
+                {selectedCity ? selectedCity.flag : (internetTime.detectedLocation.flagEmoji || '🇮🇳')} {selectedCity ? selectedCity.city : (internetTime.detectedLocation.city || 'Mumbai')}
+                {(!selectedCity && internetTime.detectedLocation.region) ? `, ${internetTime.detectedLocation.region}` : ''}
+                {selectedCity ? `, ${selectedCity.country}` : (internetTime.detectedLocation.country ? `, ${internetTime.detectedLocation.country}` : ', India')}
+              </span>
+              <span className="text-[11px] opacity-75 font-mono px-1.5 py-0.5 rounded bg-neutral-800/40 text-neutral-300">
+                {selectedCity ? selectedCity.timezone : `${internetTime.detectedLocation.timezone || 'Asia/Kolkata'} • IST`}
+              </span>
+              {selectedCity && (
+                <button
+                  onClick={() => setSelectedCity(null)}
+                  className="text-[11px] text-[#00E5FF] hover:underline font-bold ml-1.5"
+                >
+                  Return to Mumbai 🇮🇳
+                </button>
+              )}
+              {!selectedCity && internetTime.detectedLocation.city !== 'Mumbai' && (
+                <button
+                  onClick={() => internetTime.resetToMumbai()}
+                  className="text-[11px] text-[#00E5FF] hover:underline font-bold ml-1.5"
+                >
+                  Reset to Mumbai 🇮🇳
+                </button>
+              )}
+              <button
+                onClick={() => setToolMode('world')}
+                className="text-[11px] text-neutral-400 hover:text-white underline ml-1 cursor-pointer"
+              >
+                Change
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {/* Internet Sync Trigger */}
+          <button
+            onClick={() => internetTime.syncNow()}
+            disabled={internetTime.syncing}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+              internetTime.syncing
+                ? (isDark ? 'bg-neutral-800 border-neutral-700 text-neutral-400' : 'bg-neutral-100 text-neutral-400')
+                : (isDark ? 'bg-[#00E5FF]/15 border-[#00E5FF]/30 text-[#00E5FF] hover:bg-[#00E5FF]/25' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100')
+            }`}
+            title={`Click to re-sync exact atomic time from internet (RTT: ${internetTime.latencyMs}ms)`}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${internetTime.syncing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">{internetTime.syncing ? 'Syncing...' : 'Sync Time'}</span>
+          </button>
+
           {/* Audio Click Toggle */}
           <button
             onClick={() => {
@@ -470,7 +536,7 @@ export const LiveClock: React.FC<LiveClockProps> = ({ isDark = true, onClose }) 
                 : (isDark ? 'text-neutral-400 hover:text-white hover:bg-neutral-800/60' : 'text-neutral-600 hover:bg-neutral-100')
             }`}
           >
-            <Clock className="w-3.5 h-3.5" /> Local Clock
+            <Clock className="w-3.5 h-3.5" /> Mumbai Clock 🇮🇳
           </button>
 
           <button
@@ -481,7 +547,7 @@ export const LiveClock: React.FC<LiveClockProps> = ({ isDark = true, onClose }) 
                 : (isDark ? 'text-neutral-400 hover:text-white hover:bg-neutral-800/60' : 'text-neutral-600 hover:bg-neutral-100')
             }`}
           >
-            <Globe className="w-3.5 h-3.5" /> World Time {selectedCity && `(${selectedCity.city})`}
+            <Globe className="w-3.5 h-3.5" /> Locations & World Time {selectedCity && `(${selectedCity.city})`}
           </button>
 
           <button
@@ -835,62 +901,240 @@ export const LiveClock: React.FC<LiveClockProps> = ({ isDark = true, onClose }) 
                 <Compass className="w-3.5 h-3.5 opacity-60" /> {timeData.timezone}
               </span>
             </div>
+
+            {/* Internet Precision Status Pill */}
+            <div className={`mt-1 px-3.5 py-1.5 rounded-full border flex flex-wrap items-center justify-center gap-2 text-xs font-medium shadow-sm transition-all ${
+              isDark ? 'bg-neutral-900/80 border-neutral-800 text-neutral-300' : 'bg-neutral-50/90 border-neutral-200 text-neutral-700'
+            }`}>
+              <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                <Wifi className="w-3.5 h-3.5" />
+                <span>Internet Atomic Clock</span>
+              </span>
+              <span className="opacity-40">•</span>
+              <span className="flex items-center gap-1 font-medium">
+                <MapPin className="w-3 h-3 text-[#00E5FF]" />
+                {selectedCity 
+                  ? `${selectedCity.flag} ${selectedCity.city}, ${selectedCity.country}` 
+                  : `${internetTime.detectedLocation.flagEmoji || '🇮🇳'} ${internetTime.detectedLocation.city || 'Mumbai'}, ${internetTime.detectedLocation.country || 'India'}`}
+              </span>
+              <span className="opacity-40">•</span>
+              <span className="font-mono text-[11px] text-[#00E5FF] font-semibold">
+                {selectedCity ? selectedCity.timezone.split('/')[1]?.replace(/_/g, ' ') : 'IST (UTC+05:30)'}
+              </span>
+              <span className="opacity-40">•</span>
+              <span className="font-mono text-[11px] opacity-75">
+                RTT {internetTime.latencyMs}ms
+              </span>
+              {internetTime.offsetMs !== 0 && (
+                <>
+                  <span className="opacity-40">•</span>
+                  <span className={`font-mono text-[11px] ${Math.abs(internetTime.offsetMs) > 1000 ? 'text-[#00E5FF] font-semibold' : 'opacity-70'}`}>
+                    Offset {internetTime.offsetMs > 0 ? `+${(internetTime.offsetMs / 1000).toFixed(2)}s` : `${(internetTime.offsetMs / 1000).toFixed(2)}s`}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Conditional Sub-Tool Controls */}
 
-          {/* 1. World Time Mode */}
+          {/* 1. Locations & World Time Mode */}
           {toolMode === 'world' && (
-            <div className={`w-full rounded-2xl p-4 border transition-all ${
-              isDark ? 'bg-neutral-900/80 border-neutral-800' : 'bg-white border-neutral-200'
+            <div className={`w-full rounded-2xl p-4 sm:p-5 border transition-all ${
+              isDark ? 'bg-neutral-900/90 border-neutral-800' : 'bg-white border-neutral-200'
             }`}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider opacity-75">
-                  World Time Zones
-                </span>
-                {selectedCity && (
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#00E5FF]">
+                    Clock Locations & World Time
+                  </span>
+                  <p className={`text-[11px] ${isDark ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                    Primary location is set to Mumbai, India (IST UTC+05:30) with atomic internet sync.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setSelectedCity(null)}
-                    className="text-xs text-blue-500 hover:underline font-semibold"
+                    onClick={() => {
+                      setSelectedCity(null);
+                      internetTime.resetToMumbai();
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                      !selectedCity && internetTime.detectedLocation.city === 'Mumbai'
+                        ? (isDark ? 'bg-[#00E5FF]/20 border-[#00E5FF]/50 text-[#00E5FF]' : 'bg-blue-100 border-blue-400 text-blue-800')
+                        : (isDark ? 'bg-neutral-800 border-neutral-700 text-neutral-300 hover:text-white' : 'bg-neutral-100 border-neutral-200 text-neutral-700 hover:bg-neutral-200')
+                    }`}
                   >
-                    Reset to Local
+                    🇮🇳 Set Mumbai (Default)
                   </button>
-                )}
+                  <button
+                    onClick={async () => {
+                      setSelectedCity(null);
+                      await internetTime.autoDetect();
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                      isDark ? 'bg-neutral-800 border-neutral-700 text-neutral-300 hover:text-white' : 'bg-neutral-100 border-neutral-200 text-neutral-700 hover:bg-neutral-200'
+                    }`}
+                    title="Auto-detect location from network IP/GPS"
+                  >
+                    🌐 Auto-Detect
+                  </button>
+                </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {WORLD_CITIES.map(c => {
-                  const isSelected = selectedCity?.city === c.city;
-                  let cityTimeStr = '';
-                  try {
-                    const cityDate = new Date(new Date().toLocaleString('en-US', { timeZone: c.timezone }));
-                    const h = is24Hour ? cityDate.getHours() : (cityDate.getHours() % 12 || 12);
-                    const m = cityDate.getMinutes().toString().padStart(2, '0');
-                    const ap = cityDate.getHours() >= 12 ? 'PM' : 'AM';
-                    cityTimeStr = `${h}:${m} ${!is24Hour ? ap : ''}`;
-                  } catch {
-                    cityTimeStr = '--:--';
-                  }
 
-                  return (
-                    <button
-                      key={c.city}
-                      onClick={() => setSelectedCity(c)}
-                      className={`p-2.5 rounded-xl border text-left transition-all flex flex-col gap-1 ${
-                        isSelected
-                          ? (isDark ? 'bg-[#00E5FF]/15 border-[#00E5FF]/50 text-white' : 'bg-blue-50 border-blue-400 text-blue-900')
-                          : (isDark ? 'bg-neutral-800/60 border-neutral-700/60 hover:border-neutral-600' : 'bg-neutral-50 border-neutral-200 hover:bg-neutral-100')
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-base">{c.flag}</span>
-                        <span className="text-[10px] opacity-60 font-medium truncate">{c.city}</span>
-                      </div>
-                      <div className="font-mono text-sm font-bold tracking-tight">
-                        {cityTimeStr}
-                      </div>
-                    </button>
-                  );
-                })}
+              {/* Current Active Location Banner */}
+              <div className={`mb-4 p-3.5 rounded-xl border flex flex-wrap items-center justify-between gap-3 transition-all ${
+                isDark ? 'bg-gradient-to-r from-blue-950/40 via-neutral-900 to-neutral-900 border-[#00E5FF]/40' : 'bg-gradient-to-r from-blue-50 via-white to-neutral-50 border-blue-200'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">
+                    {selectedCity ? selectedCity.flag : (internetTime.detectedLocation.flagEmoji || '🇮🇳')}
+                  </span>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-extrabold tracking-tight">
+                        {selectedCity ? selectedCity.city : (internetTime.detectedLocation.city || 'Mumbai')}
+                        {selectedCity?.region ? `, ${selectedCity.region}` : (internetTime.detectedLocation.region ? `, ${internetTime.detectedLocation.region}` : ', Maharashtra')}
+                        {selectedCity ? `, ${selectedCity.country}` : `, ${internetTime.detectedLocation.country || 'India'}`}
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        Active Timezone
+                      </span>
+                    </div>
+                    <div className="text-[11px] opacity-75 font-mono mt-0.5">
+                      {selectedCity ? selectedCity.timezone : `${internetTime.detectedLocation.timezone || 'Asia/Kolkata'} (IST UTC+05:30)`}
+                      {internetTime.detectedLocation.ip && ` • IP: ${internetTime.detectedLocation.ip}`}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <div className="font-mono text-base font-extrabold text-[#00E5FF]">
+                      {timeData.timeString} {!is24Hour ? timeData.amPm : ''}
+                    </div>
+                    <div className="text-[10px] opacity-60">
+                      Live Synchronized
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Indian Cities Section */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <span>🇮🇳</span> Major Indian Cities (IST • UTC+05:30)
+                  </span>
+                  <span className="text-[11px] opacity-60">Indian Standard Time</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {INDIAN_CITIES.map(c => {
+                    const isSelected = (!selectedCity && (internetTime.detectedLocation.city === c.city || (c.city === 'Mumbai' && !internetTime.detectedLocation.city))) || selectedCity?.city === c.city;
+                    let cityTimeStr = '';
+                    try {
+                      const cityDate = new Date(new Date().toLocaleString('en-US', { timeZone: c.timezone }));
+                      const h = is24Hour ? cityDate.getHours() : (cityDate.getHours() % 12 || 12);
+                      const m = cityDate.getMinutes().toString().padStart(2, '0');
+                      const ap = cityDate.getHours() >= 12 ? 'PM' : 'AM';
+                      cityTimeStr = `${h}:${m} ${!is24Hour ? ap : ''}`;
+                    } catch {
+                      cityTimeStr = '--:--';
+                    }
+
+                    return (
+                      <button
+                        key={c.city}
+                        onClick={() => {
+                          if (c.city === 'Mumbai') {
+                            setSelectedCity(null);
+                            internetTime.resetToMumbai();
+                          } else {
+                            setSelectedCity(c);
+                            internetTime.setLocation({
+                              city: c.city,
+                              region: c.region || '',
+                              country: c.country,
+                              countryCode: 'IN',
+                              flagEmoji: c.flag,
+                              ip: internetTime.detectedLocation.ip || '',
+                              timezone: c.timezone
+                            });
+                          }
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all flex flex-col gap-1 cursor-pointer ${
+                          isSelected
+                            ? (isDark ? 'bg-[#00E5FF]/20 border-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.2)]' : 'bg-blue-100 border-blue-500 shadow-md')
+                            : (isDark ? 'bg-neutral-800/60 border-neutral-700/60 hover:border-neutral-500 hover:bg-neutral-800' : 'bg-neutral-50 border-neutral-200 hover:bg-neutral-100')
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-base">{c.flag}</span>
+                          <span className={`text-[10px] font-bold truncate ${isSelected ? 'text-[#00E5FF]' : 'opacity-70'}`}>
+                            {c.city}
+                          </span>
+                        </div>
+                        <div className="text-[10px] opacity-60 truncate">
+                          {c.region || 'India'}
+                        </div>
+                        <div className="font-mono text-sm font-black tracking-tight mt-0.5">
+                          {cityTimeStr}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Global World Cities Section */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider opacity-75 flex items-center gap-1.5">
+                    <span>🌐</span> Global World Time Zones
+                  </span>
+                  <span className="text-[11px] opacity-60">NTP Time Sync</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {WORLD_CITIES.map(c => {
+                    const isSelected = selectedCity?.city === c.city;
+                    let cityTimeStr = '';
+                    try {
+                      const cityDate = new Date(new Date().toLocaleString('en-US', { timeZone: c.timezone }));
+                      const h = is24Hour ? cityDate.getHours() : (cityDate.getHours() % 12 || 12);
+                      const m = cityDate.getMinutes().toString().padStart(2, '0');
+                      const ap = cityDate.getHours() >= 12 ? 'PM' : 'AM';
+                      cityTimeStr = `${h}:${m} ${!is24Hour ? ap : ''}`;
+                    } catch {
+                      cityTimeStr = '--:--';
+                    }
+
+                    return (
+                      <button
+                        key={c.city}
+                        onClick={() => setSelectedCity(c)}
+                        className={`p-2.5 rounded-xl border text-left transition-all flex flex-col gap-1 cursor-pointer ${
+                          isSelected
+                            ? (isDark ? 'bg-[#00E5FF]/20 border-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.2)]' : 'bg-blue-100 border-blue-500 shadow-md')
+                            : (isDark ? 'bg-neutral-800/60 border-neutral-700/60 hover:border-neutral-500 hover:bg-neutral-800' : 'bg-neutral-50 border-neutral-200 hover:bg-neutral-100')
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-base">{c.flag}</span>
+                          <span className={`text-[10px] font-medium truncate ${isSelected ? 'text-[#00E5FF]' : 'opacity-60'}`}>
+                            {c.city}
+                          </span>
+                        </div>
+                        <div className="text-[10px] opacity-60 truncate">
+                          {c.country}
+                        </div>
+                        <div className="font-mono text-sm font-bold tracking-tight mt-0.5">
+                          {cityTimeStr}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

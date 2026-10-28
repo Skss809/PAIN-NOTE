@@ -626,14 +626,14 @@ export function Notepad() {
               >
                 <div className="flex items-center gap-2.5">
                   <MiniRoundClock size={18} isDark={isDark} />
-                  <span>Live Round Clock</span>
+                  <span>Internet Clock</span>
                 </div>
                 <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
                   activeView === 'clock'
                     ? 'bg-[#00E5FF]/30 text-[#00E5FF]'
                     : (isDark ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800')
                 }`}>
-                  Live
+                  Internet
                 </span>
               </button>
 
